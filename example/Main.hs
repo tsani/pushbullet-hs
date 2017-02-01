@@ -27,16 +27,16 @@ main = do
 
   putStrLn "gonna send push"
 
-  let (createPush :<|> getPushes) :<|> createEphemeral :<|> getMe :<|> (getDevices :<|> newDevice :<|> deleteDevice) = pushbulletApiClient auth
+  let (createPush :<|> getPushes) :<|> createEphemeral :<|> getMe :<|> (getDevices :<|> createDevice :<|> deleteDevice) = pushbulletApiClient auth
 
   e <- flip runClientM env $ do
-    -- p <- createPush $ simpleNewPush
-    --   ToAll
-    --   NotePush { pushTitle = "hi", pushBody = "boobs" }
+    p <- createPush $ simpleNewPush
+      ToAll
+      NotePush { pushTitle = "hi", pushBody = "boobs" }
 
-    ds <- getDevices
+    ds <- getMe
 
-    pure ds
+    pure (p, ds)
 
   case e of
     Left err -> print err

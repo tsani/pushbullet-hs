@@ -22,11 +22,16 @@ module Network.Pushbullet.Types
 , Ephemeral(..)
   -- * Devices
 , Device(..)
+, DeviceId(..)
+, Nickname(..)
+, DeviceIcon(..)
+, HasSms(..)
 , ExistingDevices(..)
+, newDevice
   -- * Users
 , User(..)
+, UserId(..)
   -- * Misc
-, DeviceId(..)
 , EmailAddress(..)
 , ChannelTag(..)
 , ClientId(..)
@@ -37,6 +42,7 @@ module Network.Pushbullet.Types
 , Status(..)
 , StatusS(..)
 , PushbulletTime(..)
+, PhoneNumber(..)
 ) where
 
 import Control.Applicative ( (<|>) )
@@ -302,14 +308,14 @@ text = id
 
 data Ephemeral
   = Sms
-    { ephSmsSourceUser :: !ClientId
+    { ephSmsSourceUser :: !UserId
     , ephSmsTargetDevice :: !DeviceId
     , ephSmsConversation :: !PhoneNumber
     , ephSmsMessage :: !Text
     }
   | Clipboard
     { ephClipBody :: !Text
-    , ephClipSourceUser :: !ClientId
+    , ephClipSourceUser :: !UserId
     , ephClipSourceDevice :: !DeviceId
     }
   deriving (Eq, Show)
@@ -530,6 +536,7 @@ data User
     , userModified :: PushbulletTime
     , userName :: Name
     }
+  deriving (Eq, Show)
 
 instance FromJSON User where
   parseJSON (Object o) = pure User
