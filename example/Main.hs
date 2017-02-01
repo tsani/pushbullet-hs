@@ -12,9 +12,8 @@ import Data.Text.Encoding ( decodeUtf8 )
 import Network.HTTP.Client ( newManager )
 import Network.HTTP.Client.TLS ( tlsManagerSettings )
 import Prelude hiding ( readFile )
+import Servant.API
 import Servant.Client
-
-createPush = pushbulletApiClient
 
 main :: IO ()
 main = do
@@ -23,16 +22,21 @@ main = do
   let auth = pushbulletAuth (PushbulletKey authtext)
 
   manager <- newManager tlsManagerSettings
-  -- let url = BaseUrl Http "localhost" 8088 ""
   let url = BaseUrl Https "api.pushbullet.com" 443 ""
   let env = ClientEnv manager url
 
   putStrLn "gonna send push"
 
+  let (createPush :<|> getPushes) :<|> createEphemeral :<|> getMe :<|> (getDevices :<|> newDevice :<|> deleteDevice) = pushbulletApiClient auth
+
   e <- flip runClientM env $ do
-    createPush auth $ simplePush
-      ToAll
-      NotePush { pushTitle = "hi", pushBody = "boobs" }
+    -- p <- createPush $ simpleNewPush
+    --   ToAll
+    --   NotePush { pushTitle = "hi", pushBody = "boobs" }
+
+    ds <- getDevices
+
+    pure ds
 
   case e of
     Left err -> print err
