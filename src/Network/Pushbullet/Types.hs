@@ -31,6 +31,18 @@ module Network.Pushbullet.Types
   -- * Users
 , User(..)
 , UserId(..)
+  -- * Permanents
+, Permanent(..)
+, PermanentK(..)
+  -- ** SMS
+, SmsThreads(..)
+, SmsThread(..)
+, SmsThreadId(..)
+, SmsThreadRecipient(..)
+, SmsMessages(..)
+, SmsMessage(..)
+, SmsId(..)
+, SmsDirection(..)
   -- * Misc
 , EmailAddress(..)
 , ChannelTag(..)
@@ -48,6 +60,7 @@ module Network.Pushbullet.Types
 import Control.Applicative ( (<|>) )
 import Data.Aeson
 import qualified Data.HashMap.Lazy as H
+import Data.Monoid ( (<>) )
 import Data.Scientific ( toRealFloat )
 import Data.String ( IsString(..) )
 import Data.Text ( Text )
@@ -548,3 +561,108 @@ instance FromJSON User where
     <*> o .: "max_upload_size"
     <*> o .: "modified"
     <*> o .: "name"
+
+data SmsDirection
+  = IncomingSms
+  | OutgoingSms
+  deriving (Eq, Show)
+
+instance FromJSON SmsDirection where
+  parseJSON (String s) = case s of
+    "incoming" -> pure IncomingSms
+    "outgoing" -> pure OutgoingSms
+    _ -> fail "invalid SMS direction string"
+  parseJSON _ = fail "cannot parse SMS direction from non-string"
+
+newtype SmsId = SmsId Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+data SmsMessageType
+  = SMS
+  | MMS
+  deriving (Eq, Show)
+
+instance FromJSON SmsMessageType where
+  parseJSON (String s) = case s of
+    "sms" -> pure SMS
+    "mms" -> pure MMS
+    _ -> fail "invalid SMS type"
+
+data SmsMessage
+  = SmsMessage
+    { smsDirection :: !SmsDirection
+    , smsTime :: !PushbulletTime
+    , smsBody :: !Text
+    , smsId :: !SmsId
+    , smsSent :: !(Maybe Bool)
+    , smsType :: !SmsMessageType
+    }
+  deriving (Eq, Show)
+
+instance FromJSON SmsMessage where
+  parseJSON (Object o) = pure SmsMessage
+    <*> o .: "direction"
+    <*> o .: "time"
+    <*> o .: "body"
+    <*> o .: "id"
+    <*> o .:? "sent"
+    <*> o .: "type"
+
+newtype SmsMessages = SmsMessages [SmsMessage]
+  deriving (Eq, Show)
+
+instance FromJSON SmsMessages where
+  parseJSON (Object o) = SmsMessages <$> o .: "thread"
+
+newtype SmsThreads = SmsThreads [SmsThread]
+  deriving (Eq, Show)
+
+instance FromJSON SmsThreads where
+  parseJSON (Object o) = SmsThreads <$> o .: "threads"
+
+data SmsThreadRecipient
+  = SmsThreadRecipient
+    { recipientName :: !Name
+    , recipientAddress :: !PhoneNumber
+    , recipientNumber :: !PhoneNumber
+    }
+  deriving (Eq, Show)
+
+instance FromJSON SmsThreadRecipient where
+  parseJSON (Object o) = pure SmsThreadRecipient
+    <*> o .: "name"
+    <*> o .: "address"
+    <*> o .: "number"
+
+newtype SmsThreadId = SmsThreadId Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+data SmsThread
+  = SmsThread
+    { threadId :: SmsThreadId
+    , threadRecipients :: [SmsThreadRecipient]
+    , threadLatest :: SmsMessage
+    }
+  deriving (Eq, Show)
+
+instance FromJSON SmsThread where
+  parseJSON (Object o) = pure SmsThread
+    <*> o .: "id"
+    <*> o .: "recipients"
+    <*> o .: "latest"
+
+data PermanentK
+  = ThreadList
+  | MessageList
+
+data Permanent (p :: PermanentK) where
+  ThreadsOf :: !DeviceId -> Permanent 'ThreadList
+  MessagesIn :: !DeviceId -> !SmsThreadId -> Permanent 'MessageList
+
+instance ToHttpApiData (Permanent 'ThreadList) where
+  toUrlPiece p = case p of
+    ThreadsOf (DeviceId d) -> d <> "_threads"
+
+instance ToHttpApiData (Permanent 'MessageList) where
+  toUrlPiece p = case p of
+    MessagesIn (DeviceId d) (SmsThreadId t) -> d <> "_thread_" <> t

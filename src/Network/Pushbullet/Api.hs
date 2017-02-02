@@ -47,7 +47,15 @@ type PushbulletApiV2
     :<|>
       Capture "deviceId" DeviceId
       :> Delete '[JSON] TrivialObject
-  )
+    )
+  :<|>
+    "permanents" :> (
+        Capture "permanent" (Permanent 'ThreadList)
+          :> Get '[JSON] SmsThreads
+      :<|>
+        Capture "permanent" (Permanent 'MessageList)
+          :> Get '[JSON] SmsMessages
+    )
 
 pushbulletApi :: Proxy PushbulletApi
 pushbulletApi = Proxy
