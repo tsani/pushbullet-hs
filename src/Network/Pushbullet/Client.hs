@@ -16,6 +16,13 @@ type instance AuthClientData (AuthProtect PushbulletAuth) = PushbulletKey
 pushbulletApiClient :: Client PushbulletApi
 pushbulletApiClient = client pushbulletApi
 
+(createPush :<|> getPushes)
+  :<|> createEphemeral
+  :<|> getMe
+  :<|> (getDevices :<|> createDevice :<|> deleteDevice)
+  :<|> (getSmsThreads :<|> getSmsMessages)
+    = pushbulletApiClient
+
 pushbulletAuth :: PushbulletKey -> AuthenticateReq (AuthProtect PushbulletAuth)
 pushbulletAuth key = mkAuthenticateReq key f where
   f = addHeader "Access-Token"

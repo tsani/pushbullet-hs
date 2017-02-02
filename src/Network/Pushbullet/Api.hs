@@ -10,6 +10,7 @@ import Network.Pushbullet.Types
 import Data.Aeson ( Object )
 import Data.Proxy
 import Data.Text ( Text )
+import GHC.TypeLits ( Symbol )
 import Servant.API
 import Servant.API.Experimental.Auth
 
@@ -19,10 +20,10 @@ newtype PushbulletKey = PushbulletKey Text
   deriving ToHttpApiData
 
 type PushbulletApi
-  = "v2" :> AuthProtect PushbulletAuth :> PushbulletApiV2
+  = "v2" :> PushbulletApiV2
 
 type PushbulletApiV2
-  =
+  = PushAuth (AuthProtect PushbulletAuth) (
     "pushes" :> (
         ReqBody '[JSON] (Push 'New) :> Post '[JSON] (Push 'Existing)
       :<|>
@@ -56,6 +57,12 @@ type PushbulletApiV2
         Capture "permanent" (Permanent 'MessageList)
           :> Get '[JSON] SmsMessages
     )
+  )
 
 pushbulletApi :: Proxy PushbulletApi
 pushbulletApi = Proxy
+
+type family PushAuth (auth :: *) (api :: *) :: * where
+  PushAuth auth ((s :: Symbol) :> api) = PushAuth auth api
+  PushAuth auth (l :<|> r) = PushAuth auth l :<|> PushAuth auth r
+  PushAuth auth a = auth :> a
