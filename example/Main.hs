@@ -14,24 +14,25 @@
 
 module Main where
 
+import Count
+import Command
+import Format
+import Request
+import Response
+import ResponseFormat
+
 import Network.Pushbullet.Api
 import Network.Pushbullet.Client
 import Network.Pushbullet.Types
 
 import Control.Monad.Free
-import Data.Aeson ( encode, ToJSON(..), Value(Number), object, (.=) )
 import Data.Bifunctor
 import Data.ByteString ( readFile )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
-import Data.List ( sortBy )
 import Data.Monoid ( (<>) )
-import Data.Ord ( comparing )
 import qualified Data.Text as T
-import Data.Text.Encoding ( decodeUtf8, encodeUtf8 )
-import Data.Time.Clock.POSIX ( utcTimeToPOSIXSeconds )
-import Data.Time.Format ( defaultTimeLocale, formatTime )
-import Data.Time.LocalTime ( getTimeZone, utcToLocalTime )
+import Data.Text.Encoding ( decodeUtf8 )
 import Network.HTTP.Client ( newManager )
 import Network.HTTP.Client.TLS ( tlsManagerSettings )
 import Prelude hiding ( readFile )
@@ -40,209 +41,82 @@ import Servant.Client
 import System.Directory ( getHomeDirectory )
 import System.FilePath ( (</>) )
 import System.IO ( stderr, hPutStrLn )
-import qualified Text.PrettyPrint.ANSI.Leijen as PP
-import Text.PrettyPrint.ANSI.Leijen hiding ( (<>), (<$>), (</>) )
-
-data Count
-  = All
-  | Limit Int
-
-data CommandF a where
-  ListSms :: DeviceId -> SmsThreadId -> ([SmsMessage] -> a) -> CommandF a
-  ListThreads :: DeviceId -> ([SmsThread] -> a) -> CommandF a
-  SendSms :: UserId -> DeviceId -> PhoneNumber -> T.Text -> a -> CommandF a
-  ListDevices :: Count -> ([Device 'Existing] -> a) -> CommandF a
-  Me :: (User -> a) -> CommandF a
-  deriving Functor
-
-type Command = Free CommandF
-
-listSms :: DeviceId -> SmsThreadId -> Command [SmsMessage]
-listSms d t = liftF (ListSms d t id)
-
-listThreads :: DeviceId -> Command [SmsThread]
-listThreads d = liftF (ListThreads d id)
-
-sendSms :: UserId -> DeviceId -> PhoneNumber -> T.Text -> Command ()
-sendSms u d p t = liftF (SendSms u d p t ())
-
-listDevices :: Count -> Command [Device 'Existing]
-listDevices c = liftF (ListDevices c id)
-
-me :: Command User
-me = liftF (Me id)
-
-data SomeRenderableFormatter m
-  = forall fmt. RenderableFormat fmt
-  => SomeRenderableFormatter
-    { getFormatter :: ResponseFormatterM m fmt
-    }
-
-data Request m key dev count where
-  Request
-    :: SomeRenderableFormatter m
-    -> key
-    -> RequestInfo dev count
-    -> Request m key dev count
-
-data RequestInfo dev count
-  = ListSmsReq dev SmsThreadId
-  | ListThreadsReq dev
-  | SendSmsReq dev PhoneNumber T.Text
-  | ListDevicesReq count
-
-data Response m where
-  Response
-    :: SomeRenderableFormatter m
-    -> ResponseInfo
-    -> Response m
-
-data ResponseInfo
-  = SmsList [SmsMessage]
-  | ThreadList [SmsThread]
-  | DeviceList [Device 'Existing]
-  | Ok
-
-type ResponseFormatterM m fmt = ResponseInfo -> m fmt
-
-class RenderableFormat a where
-  renderFormat :: a -> LBS.ByteString
-
-instance RenderableFormat LBS.ByteString where
-  renderFormat = id
-
-instance RenderableFormat BS.ByteString where
-  renderFormat = LBS.fromStrict
-
-instance RenderableFormat Doc where
-  renderFormat
-    = LBS.fromStrict
-    . encodeUtf8
-    . T.pack
-    . ($ "")
-    . displayS
-    . renderPretty 0.75 80
-
-instance RenderableFormat T.Text where
-  renderFormat = LBS.fromStrict . encodeUtf8
-
-newtype HumanTable = HumanTable Doc
-  deriving RenderableFormat
-
-newtype JSV = JSV [[JsvCell]]
-
-data JsvCell where
-  JsvCell :: ToJSON a => !a -> JsvCell
-
-instance ToJSON JsvCell where
-  toJSON (JsvCell cell) = toJSON cell
-
-instance RenderableFormat JSV where
-  renderFormat (JSV rows)
-    = LBS.concat ((<> "\n") . LBS.intercalate "," . fmap encode <$> rows)
-
-formatJsv :: Monad m => ResponseFormatterM m JSV
-formatJsv r = pure $ JSV $ case r of
-  SmsList msgs -> (pure . JsvCell . Formatted) <$> msgs
-  ThreadList threads -> (pure . JsvCell . Formatted) <$> threads
-  DeviceList devices -> (pure . JsvCell . Formatted) <$> devices
-  Ok -> [[JsvCell @T.Text "ok"]]
-
-formatHumanTable :: ResponseFormatterM IO HumanTable
-formatHumanTable r = case r of
-  SmsList (chronological -> msgs) ->
-    HumanTable . vcat <$> (mapM phi msgs)
-  where
-    chronological = sortBy (comparing smsTime)
-
-    phi :: SmsMessage -> IO Doc
-    phi SmsMessage{..} = do
-      t <- niceTime smsTime
-      pure $
-        hang 4 (
-          group $
-            (text t <+> arrow smsDirection) PP.<$>
-            fillSep (map text $ words $ T.unpack smsBody)
-        )
-
-    d = defaultTimeLocale
-    niceTime (PushbulletTime t) =
-      formatTime d "%a %d %b %Y @ %H:%M:%S"
-        <$> (utcToLocalTime <$> getTimeZone t <*> pure t)
-
-    arrow dir = case dir of
-      OutgoingSms -> ">"
-      IncomingSms -> "<"
 
 main :: IO ()
 main
   = execParser opts -- parse commandline options
-  >>= loadDefaults  -- load any defaults
+  >>= loadDefaults  -- load any defaults to fill in the gaps in the options
   >>= run           -- execute the request
   >>= output        -- pretty-print the response
-  where
-    output :: Either Error (Response IO) -> IO ()
-    output e = case e of
-      Left err -> ePutStrLn $ "an error occurred: " ++ show err
-      Right (Response (SomeRenderableFormatter format) res) ->
-        LBS.putStr . renderFormat =<< format res
 
-    fullDescInfo p = info (helper <*> p) fullDesc
+output :: Either Error Response' -> IO ()
+output e = case e of
+  Left err -> ePutStrLn $ "an error occurred: " ++ show err
+  Right (Response (ExistsRenderableFormat (FormatM format)) res) ->
+    LBS.putStr . renderFormat =<< format res
 
-    opts = fullDescInfo cliRequest
+fullDescInfo :: Parser a -> ParserInfo a
+fullDescInfo p = info (helper <*> p) fullDesc
 
-    raw = T.pack <$> str
+opts :: ParserInfo PreRequest
+opts = fullDescInfo cliRequest
 
-    cliRequest :: Parser PreRequest
-    cliRequest
-      = pure Request
-      <*> (
-        flag
-          (SomeRenderableFormatter formatHumanTable)
-          (SomeRenderableFormatter formatJsv)
-          (long "jsv")
+raw :: ReadM T.Text
+raw = T.pack <$> str
+
+cliRequest :: Parser PreRequest
+cliRequest
+  = pure Request
+  <*> (
+    flag
+      (ExistsRenderableFormat formatHumanTable)
+      (ExistsRenderableFormat formatJsv)
+      (long "jsv")
+  )
+  <*> optional (option (PushbulletKey <$> raw) (long "key"))
+  <*> subparser cliRequestInfo
+
+cliRequestInfo :: Mod CommandFields (RequestInfo (Maybe DeviceId) (Maybe Count))
+cliRequestInfo
+  = command "sms" (fullDescInfo $ subparser cliSms)
+  <> command "devices" (fullDescInfo $ subparser cliDevices)
+
+cliSms :: Mod CommandFields (RequestInfo (Maybe DeviceId) count)
+cliSms
+  = command "list" (
+    fullDescInfo $
+      pure ListSmsReq
+        <*> optional (option (DeviceId <$> raw) (long "device"))
+        <*> option (SmsThreadId <$> raw) (long "thread")
+  )
+  <> command "send" (
+    fullDescInfo $
+      pure SendSmsReq
+        <*> optional (option (DeviceId <$> raw) (long "device"))
+        <*> option (PhoneNumber <$> raw) (long "dest")
+        <*> option raw (long "message")
+  )
+  <> command "threads" (
+    fullDescInfo $
+      pure ListThreadsReq
+        <*> optional (option (DeviceId <$> raw) (long "device"))
+  )
+
+cliDevices :: Mod CommandFields (RequestInfo dev (Maybe Count))
+cliDevices
+  = command "list" $ fullDescInfo (
+    pure ListDevicesReq
+      <*> optional (
+        flag' All (long "all")
+        <|>
+        option (Limit <$> auto) (long "limit")
       )
-      <*> optional (option (PushbulletKey <$> raw) (long "key"))
-      <*> subparser cliRequestInfo
-
-    cliRequestInfo
-      = command "sms" (fullDescInfo $ subparser cliSms)
-      <> command "devices" (fullDescInfo $ subparser cliDevices)
-
-    cliSms
-      = command "list" (
-        fullDescInfo $
-          pure ListSmsReq
-            <*> optional (option (DeviceId <$> raw) (long "device"))
-            <*> option (SmsThreadId <$> raw) (long "thread")
-      )
-      <> command "send" (
-        fullDescInfo $
-          pure SendSmsReq
-            <*> optional (option (DeviceId <$> raw) (long "device"))
-            <*> option (PhoneNumber <$> raw) (long "dest")
-            <*> option raw (long "message")
-      )
-      <> command "threads" (
-        fullDescInfo $
-          pure ListThreadsReq
-            <*> optional (option (DeviceId <$> raw) (long "device"))
-      )
-
-    cliDevices
-      = command "list" $ fullDescInfo (
-        pure ListDevicesReq
-          <*> optional (
-            flag' All (long "all")
-            <|>
-            option (Limit <$> auto) (long "limit")
-          )
-      )
+  )
 
 type PreRequest
-  = Request IO (Maybe PushbulletKey) (Maybe DeviceId) (Maybe Count)
+  = Request IO ResponseInfo (Maybe PushbulletKey) (Maybe DeviceId) (Maybe Count)
 type PreparedRequest
-  = Request IO PushbulletKey DeviceId Count
+  = Request IO ResponseInfo PushbulletKey DeviceId Count
 
 -- | Interprets a computation in the 'Command' monad into a computation in the
 -- 'ClientM' monad that actually performs HTTP requests.
@@ -309,7 +183,9 @@ data Error
   = ServantError ServantError
   deriving (Eq, Show)
 
-run :: PreparedRequest -> IO (Either Error (Response IO))
+type Response' = Response (ExistsRenderableFormat (FormatM ResponseInfo IO))
+
+run :: PreparedRequest -> IO (Either Error Response')
 run (Request format key req) = do
   manager <- newManager tlsManagerSettings
   let url = BaseUrl Https "api.pushbullet.com" 443 ""
@@ -334,54 +210,6 @@ run (Request format key req) = do
         User {userId = i} <- me
         sendSms i d n t
       pure $ Response format <$> r
-
--- | A simple newtype wrapper so that we can special ToJSON instances for the
--- output.
-newtype Formatted a = Formatted a
-
-instance ToJSON (Formatted PushbulletTime) where
-  toJSON (Formatted (PushbulletTime t)) = Number d where
-    d = fromRational (toRational $ utcTimeToPOSIXSeconds t)
-
-instance ToJSON (Formatted SmsMessage) where
-  toJSON (Formatted SmsMessage{..}) = object
-    [ "direction" .= id @T.Text (
-      case smsDirection of
-        IncomingSms -> "incoming"
-        OutgoingSms -> "outgoing"
-      )
-    , "time" .= Formatted smsTime
-    , "body" .= smsBody
-    , "smsId" .= smsId
-    , "smsType" .= id @T.Text (
-      case smsType of
-        SMS -> "sms"
-        MMS -> "mms"
-      )
-    ]
-
-instance ToJSON (Formatted SmsThread) where
-  toJSON (Formatted SmsThread{..}) = object
-    [ "id" .= threadId
-    , "recipients" .= (Formatted <$> threadRecipients)
-    , "latest" .= Formatted threadLatest
-    ]
-
-instance ToJSON (Formatted SmsThreadRecipient) where
-  toJSON (Formatted SmsThreadRecipient{..}) = object
-    [ "name" .= recipientName
-    , "number" .= recipientNumber
-    ]
-
-instance ToJSON (Formatted (Device 'Existing)) where
-  toJSON (Formatted Device{..}) = object
-    [ "id" .= deviceId
-    , "active" .= deviceActive
-    , "name" .= deviceNickname
-    , "hasSms" .= deviceHasSms
-    , "manufacturer" .= deviceManufacturer
-    , "model" .= deviceModel
-    ]
 
 ePutStrLn :: String -> IO ()
 ePutStrLn = hPutStrLn stderr
