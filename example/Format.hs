@@ -51,18 +51,3 @@ data ExistsRenderableFormat f
 
 -- | A monad for formatting text. This is just a kleisli arrow!
 newtype FormatM i m o = FormatM { unFormatM :: i -> m o }
-
-newtype HumanTable = HumanTable P.Doc
-  deriving RenderableFormat
-
-newtype JSV = JSV [[JsvCell]]
-
-data JsvCell where
-  JsvCell :: ToJSON a => !a -> JsvCell
-
-instance ToJSON JsvCell where
-  toJSON (JsvCell cell) = toJSON cell
-
-instance RenderableFormat JSV where
-  renderFormat (JSV rows)
-    = LBS.concat ((<> "\n") . LBS.intercalate "," . fmap encode <$> rows)
