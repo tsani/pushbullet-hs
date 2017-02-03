@@ -41,7 +41,8 @@ type PushbulletApiV2
       :> "me"
         :> Get '[JSON] User
   :<|> "devices" :> (
-      Get '[JSON] (Paginated ExistingDevices)
+      QueryParam "cursor" Cursor
+      :> Get '[JSON] (Paginated ExistingDevices)
     :<|>
       ReqBody '[JSON] (Device 'New)
       :> Post '[JSON] (Device 'Existing)
@@ -51,10 +52,10 @@ type PushbulletApiV2
     )
   :<|>
     "permanents" :> (
-        Capture "permanent" (Permanent 'ThreadList)
+        Capture "permanent" (Permanent 'ThreadListK)
           :> Get '[JSON] SmsThreads
       :<|>
-        Capture "permanent" (Permanent 'MessageList)
+        Capture "permanent" (Permanent 'MessageListK)
           :> Get '[JSON] SmsMessages
     )
   )
@@ -63,6 +64,6 @@ pushbulletApi :: Proxy PushbulletApi
 pushbulletApi = Proxy
 
 type family PushAuth (auth :: *) (api :: *) :: * where
-  PushAuth auth ((s :: Symbol) :> api) = PushAuth auth api
+  PushAuth auth ((s :: Symbol) :> api) = s :> PushAuth auth api
   PushAuth auth (l :<|> r) = PushAuth auth l :<|> PushAuth auth r
   PushAuth auth a = auth :> a

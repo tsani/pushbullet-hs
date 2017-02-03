@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -11,7 +12,7 @@
 module Network.Pushbullet.Types
 ( -- * Pagination
   Paginated(..)
-, Cursor(..)
+, Cursor
   -- * Pushes
 , Push(..)
 , PushData(..)
@@ -43,7 +44,10 @@ module Network.Pushbullet.Types
 , SmsMessage(..)
 , SmsId(..)
 , SmsDirection(..)
+, SmsMessageType(..)
   -- * Misc
+  --
+  -- ** Data
 , EmailAddress(..)
 , ChannelTag(..)
 , ClientId(..)
@@ -52,9 +56,11 @@ module Network.Pushbullet.Types
 , Guid(..)
 , TrivialObject(..)
 , Status(..)
-, StatusS(..)
 , PushbulletTime(..)
 , PhoneNumber(..)
+
+  -- ** Type-level stuff
+, EqT(..)
 ) where
 
 import Control.Applicative ( (<|>) )
@@ -68,82 +74,72 @@ import Data.Time.Clock ( NominalDiffTime, UTCTime )
 import Data.Time.Clock.POSIX ( utcTimeToPOSIXSeconds, posixSecondsToUTCTime )
 import Web.HttpApiData ( ToHttpApiData(..) )
 
+----- PAGINATION --------------------------------------------------------------
+
+-- | A single page of data, possibly with a cursor attached to it.
+-- The cursor may be used in routes that return paginated data to produce the
+-- next page of data.
+data Paginated a = Page !a !(Maybe Cursor)
+  deriving (Eq, Functor, Show)
+
+-- | Cursors are opaque.
 newtype Cursor = Cursor Text
   deriving (Eq, FromJSON, Show, ToJSON, ToHttpApiData)
-
-data Paginated a = Page !a !(Maybe Cursor)
-  deriving (Eq, Show)
 
 instance FromJSON a => FromJSON (Paginated a) where
   parseJSON j@(Object o) = Page <$> parseJSON j <*> o .:? "cursor"
   parseJSON _ = fail "cannot parse paginated data from non-object"
 
-newtype DeviceId = DeviceId Text
-  deriving (Eq, FromJSON, Show, ToJSON, ToHttpApiData)
+----- PUSHES ------------------------------------------------------------------
 
-newtype EmailAddress = EmailAddress Text
-  deriving (Eq, FromJSON, Show, ToJSON)
+-- | A push. We reuse the same datatype for representing new pushes and
+-- existing pushes. The 'EqT' type family is used to enable fields selectively
+-- according to whether we're making a new push or representing an existing
+-- one.
+data Push (s :: Status)
+  = Push
+    { pushData :: !(PushData s)
+    , pushSourceDevice :: !(Maybe DeviceId)
+    , pushTarget :: !(PushTarget s)
+    , pushGuid :: !(Maybe Guid)
+    , pushId :: !(EqT 'Existing s PushId)
+    , pushActive :: !(EqT 'Existing s Bool)
+    , pushCreated :: !(EqT 'Existing s PushbulletTime)
+    , pushModified :: !(EqT 'Existing s PushbulletTime)
+    , pushDismissed :: !(EqT 'Existing s Bool)
+    , pushDirection :: !(EqT 'Existing s PushDirection)
+    , pushSender :: !(EqT 'Existing s UserId)
+    , pushSenderEmail :: !(EqT 'Existing s EmailAddress)
+    , pushSenderEmailNormalized :: !(EqT 'Existing s EmailAddress)
+    , pushSenderName :: !(EqT 'Existing s Name)
+    , pushReceiver :: !(EqT 'Existing s UserId)
+    , pushReceiverEmail :: !(EqT 'Existing s EmailAddress)
+    , pushReceiverEmailNormalized :: !(EqT 'Existing s EmailAddress)
+    , pushOrigin :: !(EqT 'Existing s (Maybe PushOrigin))
+    }
 
-newtype ChannelTag = ChannelTag Text
-  deriving (Eq, FromJSON, Show, ToJSON)
-
-newtype ChannelId = ChannelId Text
-  deriving (Eq, FromJSON, Show, ToJSON)
-
-newtype ClientId = ClientId Text
-  deriving (Eq, FromJSON, Show, ToJSON)
-
-newtype MimeType = MimeType Text
-  deriving (Eq, FromJSON, Show, ToJSON)
-
-newtype Url = Url Text
-  deriving (Eq, FromJSON, Show, ToJSON)
-
-newtype Guid = Guid Text
-  deriving (Eq, FromJSON, Show, ToJSON)
-
-newtype PhoneNumber = PhoneNumber Text
-  deriving (Eq, FromJSON, Show, ToJSON)
-
+-- | Unique identifier for a push.
 newtype PushId = PushId Text
   deriving (Eq, FromJSON, Show, ToJSON)
 
-data Direction
-  = Self
-  | Outgoing
-  | Incoming
+-- | The direction of a push.
+data PushDirection
+  = SelfPush
+  | OutgoingPush
+  | IncomingPush
   deriving (Eq, Ord, Show)
 
-instance ToJSON Direction where
-  toJSON Self = String "self"
-  toJSON Outgoing = String "outgoing"
-  toJSON Incoming = String "incoming"
+-- | The target of a push.
+data PushTarget (s :: Status) where
+  ToAll :: PushTarget 'New
+  ToDevice :: !DeviceId -> PushTarget 'New
+  ToEmail :: !EmailAddress -> PushTarget 'New
+  ToChannel :: !ChannelTag -> PushTarget 'New
+  ToClient :: !ClientId -> PushTarget 'New
+  SentBroadcast :: PushTarget 'Existing
+  SentToDevice :: !DeviceId -> PushTarget 'Existing
 
-instance FromJSON Direction where
-  parseJSON (String s) = case s of
-    "self" -> pure Self
-    "outgoing" -> pure Outgoing
-    "incoming" -> pure Incoming
-    _ -> fail "invalid direction string"
-  parseJSON _ = fail "cannot parse push direction from non-string"
-
-type family EqT (s :: k) (s' :: k) (a :: *) :: * where
-  EqT s s a = a
-  EqT _ _ _ = ()
-
-data PushTarget
-  = ToAll
-  | ToDevice !DeviceId
-  | ToEmail !EmailAddress
-  | ToChannel !ChannelTag
-  | ToClient !ClientId
-  deriving (Eq, Show)
-
-data ExistingPushTarget
-  = SentBroadcast
-  | SentToDevice !DeviceId
-  deriving (Eq, Show)
-
+-- | The actual contents of a push.
 data PushData (s :: Status)
   = NotePush
     { pushTitle :: !Text
@@ -165,38 +161,61 @@ data PushData (s :: Status)
     , pushImageHeight :: !(EqT 'Existing s (Maybe Int))
     }
 
-deriving instance Eq (PushData 'New)
-deriving instance Eq (PushData 'Existing)
-deriving instance Show (PushData 'New)
-deriving instance Show (PushData 'Existing)
-
+-- | The origin of a push.
 data PushOrigin
   = FromClient !ClientId
   | FromChannel !ChannelId
   deriving (Eq, Show)
 
-data Push (s :: Status)
-  = Push
-    { pushData :: !(PushData s)
-    , pushSourceDevice :: !(Maybe DeviceId)
-    , pushTarget :: !(EqT 'New s PushTarget)
-    , pushGuid :: !(Maybe Guid)
-    , pushId :: !(EqT 'Existing s PushId)
-    , pushActive :: !(EqT 'Existing s Bool)
-    , pushCreated :: !(EqT 'Existing s PushbulletTime)
-    , pushModified :: !(EqT 'Existing s PushbulletTime)
-    , pushDismissed :: !(EqT 'Existing s Bool)
-    , pushDirection :: !(EqT 'Existing s Direction)
-    , pushSender :: !(EqT 'Existing s UserId)
-    , pushSenderEmail :: !(EqT 'Existing s EmailAddress)
-    , pushSenderEmailNormalized :: !(EqT 'Existing s EmailAddress)
-    , pushSenderName :: !(EqT 'Existing s Name)
-    , pushReceiver :: !(EqT 'Existing s UserId)
-    , pushReceiverEmail :: !(EqT 'Existing s EmailAddress)
-    , pushReceiverEmailNormalized :: !(EqT 'Existing s EmailAddress)
-    , pushExistingTarget :: !(EqT 'Existing s ExistingPushTarget)
-    , pushOrigin :: !(EqT 'Existing s (Maybe PushOrigin))
-    }
+-- | A newtype wrapper for a list of existing pushes. We need this to get a
+-- nonstandard 'FromJSON' instance for the list, because Pushbullet gives us
+-- the list wrapped in a trivial object with one key.
+newtype ExistingPushes = ExistingPushes [Push 'Existing]
+  deriving (Eq, Show)
+
+-- | Constructs a new @Push@ with the source device and guid set to @Nothing@.
+simpleNewPush :: PushTarget 'New -> PushData 'New -> Push 'New
+simpleNewPush t d = Push
+  { pushData = d
+  , pushSourceDevice = Nothing
+  , pushTarget = t
+  , pushGuid = Nothing
+  , pushId = ()
+  , pushActive = ()
+  , pushCreated = ()
+  , pushModified = ()
+  , pushDismissed = ()
+  , pushDirection = ()
+  , pushSender = ()
+  , pushSenderEmail = ()
+  , pushSenderEmailNormalized = ()
+  , pushSenderName = ()
+  , pushReceiver = ()
+  , pushReceiverEmail = ()
+  , pushReceiverEmailNormalized = ()
+  , pushOrigin = ()
+  }
+
+instance ToJSON PushDirection where
+  toJSON SelfPush = String "self"
+  toJSON OutgoingPush = String "outgoing"
+  toJSON IncomingPush = String "incoming"
+
+instance FromJSON PushDirection where
+  parseJSON (String s) = case s of
+    "self" -> pure SelfPush
+    "outgoing" -> pure OutgoingPush
+    "incoming" -> pure IncomingPush
+    _ -> fail "invalid direction string"
+  parseJSON _ = fail "cannot parse push direction from non-string"
+
+deriving instance Eq (PushTarget s)
+deriving instance Show (PushTarget s)
+
+deriving instance Eq (PushData 'New)
+deriving instance Eq (PushData 'Existing)
+deriving instance Show (PushData 'New)
+deriving instance Show (PushData 'Existing)
 
 deriving instance Eq (Push 'New)
 deriving instance Eq (Push 'Existing)
@@ -231,7 +250,7 @@ instance FromJSON (Push 'Existing) where
     pure Push
       <*> pure d
       <*> o .:? "source_device_iden"
-      <*> pure ()
+      <*> (maybe SentBroadcast SentToDevice <$> o .:? "target_device_iden")
       <*> o .:? "guid"
       <*> o .: "iden"
       <*> o .: "active"
@@ -246,38 +265,10 @@ instance FromJSON (Push 'Existing) where
       <*> o .: "receiver_iden"
       <*> o .: "receiver_email"
       <*> o .: "receiver_email_normalized"
-      <*> (maybe SentBroadcast SentToDevice <$> o .:? "target_device_iden")
       <*> pure origin
-
-newtype ExistingPushes = ExistingPushes [Push 'Existing]
-  deriving (Eq, Show)
 
 instance FromJSON ExistingPushes where
   parseJSON j@(Object o) = ExistingPushes <$> o .: "pushes"
-
--- | Constructs a new @Push@ with the source device and guid set to @Nothing@.
-simpleNewPush :: PushTarget -> PushData 'New -> Push 'New
-simpleNewPush t d = Push
-  { pushData = d
-  , pushSourceDevice = Nothing
-  , pushTarget = t
-  , pushGuid = Nothing
-  , pushId = ()
-  , pushActive = ()
-  , pushCreated = ()
-  , pushModified = ()
-  , pushDismissed = ()
-  , pushDirection = ()
-  , pushSender = ()
-  , pushSenderEmail = ()
-  , pushSenderEmailNormalized = ()
-  , pushSenderName = ()
-  , pushReceiver = ()
-  , pushReceiverEmail = ()
-  , pushReceiverEmailNormalized = ()
-  , pushExistingTarget = ()
-  , pushOrigin = ()
-  }
 
 instance ToJSON (Push 'New) where
   toJSON Push{..} = object (concat pieces) where
@@ -316,8 +307,7 @@ instance ToJSON (Push 'New) where
         , "file_url" .= pushFileUrl
         ]
 
-text :: Text -> Text
-text = id
+----- EPHEMERALS --------------------------------------------------------------
 
 data Ephemeral
   = Sms
@@ -356,78 +346,9 @@ instance ToJSON Ephemeral where
         ]
       ]
 
-newtype TrivialObject = TrivialObject ()
-  deriving (Eq, Ord, Monoid, Show)
+----- DEVICES -----------------------------------------------------------------
 
-
-instance ToJSON TrivialObject where
-  toJSON _ = object []
-
-instance FromJSON TrivialObject where
-  parseJSON (Object o)
-    | H.null o = pure mempty
-    | otherwise = fail "trivial object has no keys"
-  parseJSON _ = fail "cannot parse non-object to trivial object"
-
-newtype DeviceIcon = DeviceIcon Text
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-newtype Manufacturer = Manufacturer Text
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-newtype Fingerprint = Fingerprint Text
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-newtype Model = Model Text
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-newtype AppVersion = AppVersion Int
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-newtype KeyFingerprint = KeyFingerprint Text
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-newtype PushToken = PushToken Text
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-newtype PushbulletTime = PushbulletTime UTCTime
-  deriving (Eq, Show)
-
-instance ToHttpApiData PushbulletTime where
-  toUrlPiece (PushbulletTime utc) = fromString (show d) where
-    d = fromRational (toRational $ utcTimeToPOSIXSeconds utc)
-
-newtype Nickname = Nickname Text
-  deriving (Eq, ToJSON, Show, FromJSON)
-
-data HasSms = NoSms | HasSms
-  deriving (Eq, Ord, Show)
-
-instance ToJSON HasSms where
-  toJSON NoSms = Bool False
-  toJSON HasSms = Bool True
-
-instance FromJSON HasSms where
-  parseJSON (Bool True) = pure HasSms
-  parseJSON (Bool False) = pure NoSms
-  parseJSON _ = fail "cannot parse SMS ability from non-boolean"
-
-instance FromJSON PushbulletTime where
-  parseJSON (Number n) = pure (PushbulletTime (posixSecondsToUTCTime p)) where
-    p = fromRational (toRational d) :: NominalDiffTime
-    d = toRealFloat n :: Double
-
-instance ToJSON PushbulletTime where
-  toJSON (PushbulletTime utcTime) = Number $ fromRational (toRational $ utcTimeToPOSIXSeconds utcTime)
-
-data Status
-  = New
-  | Existing
-
-data StatusS :: Status -> * where
-  NewS :: StatusS 'New
-  ExistingS :: StatusS 'Existing
-
+-- | A device attached to a Pushbullet account.
 data Device (s :: Status)
   = Device
     { deviceId :: !(EqT 'Existing s DeviceId)
@@ -446,11 +367,7 @@ data Device (s :: Status)
     , devicePushToken :: !(Maybe PushToken)
     }
 
-deriving instance Eq (Device 'New)
-deriving instance Eq (Device 'Existing)
-deriving instance Show (Device 'New)
-deriving instance Show (Device 'Existing)
-
+-- | Smart constructor for a new device that fills in the ignored fields.
 newDevice
   :: HasSms
   -> DeviceIcon
@@ -475,6 +392,123 @@ newDevice sms icon nick man mod ver = Device
   , deviceHasSms = sms
   , devicePushToken = Nothing
   }
+
+-- | A newtype wrapper for a list of existing devices. We need this to get a
+-- nonstandard 'FromJSON' instance for the list, because Pushbullet gives us
+-- the list wrapped in a trivial object with one key.
+newtype ExistingDevices
+  = ExistingDevices
+    { unExistingDevices :: [Device 'Existing]
+    }
+  deriving (Eq, Show)
+
+-- | Whether the device has SMS capabilities.
+data HasSms = NoSms | HasSms
+  deriving (Eq, Ord, Show)
+
+newtype DeviceId = DeviceId Text
+  deriving (Eq, FromJSON, Show, ToJSON, ToHttpApiData)
+
+newtype DeviceIcon = DeviceIcon Text
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype Nickname = Nickname Text
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype PushToken = PushToken Text
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype Manufacturer = Manufacturer Text
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype Fingerprint = Fingerprint Text
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype Model = Model Text
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype AppVersion = AppVersion Int
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype KeyFingerprint = KeyFingerprint Text
+  deriving (Eq, ToJSON, Show, FromJSON)
+
+newtype EmailAddress = EmailAddress Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+newtype ChannelTag = ChannelTag Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+newtype ChannelId = ChannelId Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+newtype ClientId = ClientId Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+newtype MimeType = MimeType Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+newtype Url = Url Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+newtype Guid = Guid Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+newtype PhoneNumber = PhoneNumber Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+type family EqT (s :: k) (s' :: k) (a :: *) :: * where
+  EqT s s a = a
+  EqT _ _ _ = ()
+
+text :: Text -> Text
+text = id
+
+newtype TrivialObject = TrivialObject ()
+  deriving (Eq, Ord, Monoid, Show)
+
+
+instance ToJSON TrivialObject where
+  toJSON _ = object []
+
+instance FromJSON TrivialObject where
+  parseJSON (Object o)
+    | H.null o = pure mempty
+    | otherwise = fail "trivial object has no keys"
+  parseJSON _ = fail "cannot parse non-object to trivial object"
+
+newtype PushbulletTime = PushbulletTime UTCTime
+  deriving (Eq, Ord, Show)
+
+instance ToHttpApiData PushbulletTime where
+  toUrlPiece (PushbulletTime utc) = fromString (show d) where
+    d = fromRational (toRational $ utcTimeToPOSIXSeconds utc)
+
+instance ToJSON HasSms where
+  toJSON NoSms = Bool False
+  toJSON HasSms = Bool True
+
+instance FromJSON HasSms where
+  parseJSON (Bool True) = pure HasSms
+  parseJSON (Bool False) = pure NoSms
+  parseJSON _ = fail "cannot parse SMS ability from non-boolean"
+
+instance FromJSON PushbulletTime where
+  parseJSON (Number n) = pure (PushbulletTime (posixSecondsToUTCTime p)) where
+    p = fromRational (toRational d) :: NominalDiffTime
+    d = toRealFloat n :: Double
+
+instance ToJSON PushbulletTime where
+  toJSON (PushbulletTime utcTime) = Number $ fromRational (toRational $ utcTimeToPOSIXSeconds utcTime)
+
+data Status
+  = New
+  | Existing
+
+deriving instance Eq (Device 'New)
+deriving instance Eq (Device 'Existing)
+deriving instance Show (Device 'New)
+deriving instance Show (Device 'Existing)
 
 instance ToJSON (Device 'Existing) where
   toJSON Device{..} = object
@@ -521,9 +555,6 @@ instance ToJSON (Device 'New) where
     , "icon" .= deviceIcon
     , "has_sms" .= deviceHasSms
     ]
-
-newtype ExistingDevices = ExistingDevices [Device 'Existing]
-  deriving (Eq, Show)
 
 instance FromJSON ExistingDevices where
   parseJSON (Object o) = ExistingDevices <$> o .: "devices"
@@ -602,19 +633,25 @@ data SmsMessage
 instance FromJSON SmsMessage where
   parseJSON (Object o) = pure SmsMessage
     <*> o .: "direction"
-    <*> o .: "time"
+    <*> o .: "timestamp"
     <*> o .: "body"
     <*> o .: "id"
     <*> o .:? "sent"
     <*> o .: "type"
 
-newtype SmsMessages = SmsMessages [SmsMessage]
+newtype SmsMessages
+  = SmsMessages
+    { unSmsMessages :: [SmsMessage]
+    }
   deriving (Eq, Show)
 
 instance FromJSON SmsMessages where
   parseJSON (Object o) = SmsMessages <$> o .: "thread"
 
-newtype SmsThreads = SmsThreads [SmsThread]
+newtype SmsThreads
+  = SmsThreads
+    { unSmsThreads :: [SmsThread]
+    }
   deriving (Eq, Show)
 
 instance FromJSON SmsThreads where
@@ -652,17 +689,17 @@ instance FromJSON SmsThread where
     <*> o .: "latest"
 
 data PermanentK
-  = ThreadList
-  | MessageList
+  = ThreadListK
+  | MessageListK
 
 data Permanent (p :: PermanentK) where
-  ThreadsOf :: !DeviceId -> Permanent 'ThreadList
-  MessagesIn :: !DeviceId -> !SmsThreadId -> Permanent 'MessageList
+  ThreadsOf :: !DeviceId -> Permanent 'ThreadListK
+  MessagesIn :: !DeviceId -> !SmsThreadId -> Permanent 'MessageListK
 
-instance ToHttpApiData (Permanent 'ThreadList) where
+instance ToHttpApiData (Permanent 'ThreadListK) where
   toUrlPiece p = case p of
     ThreadsOf (DeviceId d) -> d <> "_threads"
 
-instance ToHttpApiData (Permanent 'MessageList) where
+instance ToHttpApiData (Permanent 'MessageListK) where
   toUrlPiece p = case p of
     MessagesIn (DeviceId d) (SmsThreadId t) -> d <> "_thread_" <> t
