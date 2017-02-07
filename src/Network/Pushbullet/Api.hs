@@ -28,10 +28,10 @@ type PushbulletApiV2
         ReqBody '[JSON] (Push 'New) :> Post '[JSON] (Push 'Existing)
       :<|>
         QueryParam "modified_after" PushbulletTime
-          :> QueryParam "active" Bool
-          :> QueryParam "cursor" Cursor
-          :> QueryParam "limit" Int
-          :> Get '[JSON] (Paginated ExistingPushes)
+        :> QueryParam "active" Bool
+        :> QueryParam "cursor" Cursor
+        :> QueryParam "limit" Int
+        :> Get '[JSON] (Paginated ExistingPushes)
     )
   :<|>
     "ephemerals"
@@ -41,7 +41,8 @@ type PushbulletApiV2
       :> "me"
         :> Get '[JSON] User
   :<|> "devices" :> (
-      QueryParam "cursor" Cursor
+      QueryParam "active" Bool
+      :> QueryParam "cursor" Cursor
       :> Get '[JSON] (Paginated ExistingDevices)
     :<|>
       ReqBody '[JSON] (Device 'New)
