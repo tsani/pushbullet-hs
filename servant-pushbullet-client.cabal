@@ -2,14 +2,17 @@
 -- further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                servant-pushbullet-client
-version:             0.1.0.0
--- synopsis:            
--- description:         
+version:             0.0.1.0
+synopsis:            Bindings to the Pushbullet API using servant-client
+description:
+  This library describes the Pushbullet API as a type, and uses servant-client
+  to generate Haskell functions for accessing the API. A number of useful types
+  are added so that dealing with raw JSON is avoided.
 license:             MIT
 license-file:        LICENSE
 author:              Jacob Errington
 maintainer:          git@mail.jerrington.me
--- copyright:           
+copyright:           Jacob Thomas Errington, 2017
 category:            Web
 build-type:          Simple
 extra-source-files:  ChangeLog.md
