@@ -58,6 +58,7 @@ module Network.Pushbullet.Types
 , Status(..)
 , PushbulletTime(..)
 , PhoneNumber(..)
+, Name(..)
 
   -- ** Type-level stuff
 , EqT(..)
@@ -66,6 +67,8 @@ module Network.Pushbullet.Types
 import Control.Applicative ( (<|>) )
 import Data.Aeson
 import qualified Data.HashMap.Lazy as H
+import Data.List.NonEmpty ( NonEmpty(..) )
+import qualified Data.List.NonEmpty as N
 import Data.Monoid ( (<>) )
 import Data.Scientific ( toRealFloat )
 import Data.String ( IsString(..) )
@@ -563,7 +566,9 @@ instance FromJSON ExistingDevices where
 instance ToJSON ExistingDevices where
   toJSON (ExistingDevices ds) = object [ "devices" .= ds ]
 
-newtype Name = Name Text
+newtype Name = Name
+  { unName :: Text
+  }
   deriving (Eq, FromJSON, Show, ToJSON)
 
 newtype UserId = UserId Text
@@ -677,7 +682,7 @@ newtype SmsThreadId = SmsThreadId Text
 data SmsThread
   = SmsThread
     { threadId :: SmsThreadId
-    , threadRecipients :: [SmsThreadRecipient]
+    , threadRecipients :: NonEmpty SmsThreadRecipient
     , threadLatest :: SmsMessage
     }
   deriving (Eq, Show)

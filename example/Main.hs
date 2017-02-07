@@ -20,13 +20,14 @@ import Format
 import Request
 import Response
 import ResponseFormat
+import Sum
 
 import Network.Pushbullet.Api
 import Network.Pushbullet.Client
 import Network.Pushbullet.Types
 
 import Control.Monad.Free
-import Data.Bifunctor
+import Data.Bifunctor ( first )
 import Data.ByteString ( readFile )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
@@ -38,85 +39,137 @@ import Network.HTTP.Client.TLS ( tlsManagerSettings )
 import Prelude hiding ( readFile )
 import Options.Applicative
 import Servant.Client
-import System.Directory ( getHomeDirectory )
-import System.FilePath ( (</>) )
 import System.IO ( stderr, hPutStrLn )
 
 main :: IO ()
 main
-  = execParser opts -- parse commandline options
-  >>= loadDefaults  -- load any defaults to fill in the gaps in the options
-  >>= run           -- execute the request
-  >>= output        -- pretty-print the response
-
-output :: Either Error Response' -> IO ()
-output e = case e of
-  Left err -> ePutStrLn $ "an error occurred: " ++ show err
-  Right (Response (ExistsRenderableFormat (FormatM format)) res) ->
-    LBS.putStr . renderFormat =<< format res
+  = execParser opts    -- parse commandline options
+  >>= bleh
+  >>= run              -- execute the request
+  -- >>= output   -- pretty-print the response
 
 fullDescInfo :: Parser a -> ParserInfo a
 fullDescInfo p = info (helper <*> p) fullDesc
 
-opts :: ParserInfo PreRequest
+bleh :: Request IO (IO PushbulletKey) -> IO (Request IO PushbulletKey)
+bleh = sequence
+
+opts :: ParserInfo (Request IO (IO PushbulletKey))
 opts = fullDescInfo cliRequest
 
 raw :: ReadM T.Text
 raw = T.pack <$> str
 
-cliRequest :: Parser PreRequest
+line :: FilePath -> IO T.Text
+line p = decodeUtf8 . BS.init <$> readFile p
+
+cliRequest :: Parser (Request IO (IO PushbulletKey))
 cliRequest
   = pure Request
-  <*> (
-    flag
-      (ExistsRenderableFormat formatHumanTable)
-      (ExistsRenderableFormat formatJsv)
-      (long "jsv")
-  )
-  <*> optional (option (PushbulletKey <$> raw) (long "key"))
-  <*> subparser cliRequestInfo
-
-cliRequestInfo :: Mod CommandFields (RequestInfo (Maybe DeviceId) (Maybe Count))
-cliRequestInfo
-  = command "sms" (fullDescInfo $ subparser cliSms)
-  <> command "devices" (fullDescInfo $ subparser cliDevices)
-
-cliSms :: Mod CommandFields (RequestInfo (Maybe DeviceId) count)
-cliSms
-  = command "list" (
-    fullDescInfo $
-      pure ListSmsReq
-        <*> optional (option (DeviceId <$> raw) (long "device"))
-        <*> option (SmsThreadId <$> raw) (long "thread")
-  )
-  <> command "send" (
-    fullDescInfo $
-      pure SendSmsReq
-        <*> optional (option (DeviceId <$> raw) (long "device"))
-        <*> option (PhoneNumber <$> raw) (long "dest")
-        <*> option raw (long "message")
-  )
-  <> command "threads" (
-    fullDescInfo $
-      pure ListThreadsReq
-        <*> optional (option (DeviceId <$> raw) (long "device"))
-  )
-
-cliDevices :: Mod CommandFields (RequestInfo dev (Maybe Count))
-cliDevices
-  = command "list" $ fullDescInfo (
-    pure ListDevicesReq
-      <*> optional (
-        flag' All (long "all")
-        <|>
-        option (Limit <$> auto) (long "limit")
+  <*> flag
+    (ExistsRenderableFormat <$> formatHumanTable)
+    (ExistsRenderableFormat . pure <$> formatJsv)
+    (long "jsv")
+  <*> option
+    (fmap pure $ PushbulletKey <$> raw)
+    (long "key" <> value (PushbulletKey <$> line access))
+  <*> subparser (
+    command "sms" (
+      fullDescInfo $ subparser (
+        command "list" (
+          fullDescInfo $
+            pure (\d t -> do
+              d' <- case d of
+                Nothing -> DeviceId <$> line device
+                Just x -> pure x
+              pure $ inject <$> listSms d' t
+            )
+            <*> optional (option (DeviceId <$> raw) (long "device"))
+            <*> option (SmsThreadId <$> raw) (long "thread")
+        )
+        <>
+        command "send" (
+          fullDescInfo $
+            pure (\d n m -> do
+              d' <- maybe (fmap DeviceId $ line device) pure d
+              pure $ inject <$> do
+                User {userId = u} <- me
+                sendSms u d' n m
+            )
+            <*> optional (option (DeviceId <$> raw) (long "device"))
+            <*> option (PhoneNumber <$> raw) (long "number")
+            <*> option raw (long "message")
+        )
+        <>
+        command "threads" (
+          fullDescInfo $
+            pure (\d -> do
+              d' <- maybe (fmap DeviceId $ line device) pure d
+              pure $ inject <$> listThreads d'
+            )
+            <*> optional (option (DeviceId <$> raw) (long "device"))
+        )
       )
+    )
+    <>
+    command "devices" (
+      fullDescInfo $ subparser (
+        command "list" (
+          fullDescInfo $
+            pure (\c -> do
+              let c' = maybe All id c
+              pure $ inject <$> listDevices c'
+            )
+            <*> optional (option (Limit <$> auto) (long "limit"))
+        )
+      )
+    )
   )
 
-type PreRequest
-  = Request IO ResponseInfo (Maybe PushbulletKey) (Maybe DeviceId) (Maybe Count)
-type PreparedRequest
-  = Request IO ResponseInfo PushbulletKey DeviceId Count
+device :: String
+device = "/home/tsani/.phoneDeviceID"
+
+access :: String
+access = "/home/tsani/.pushbulletaccess"
+
+-- cliSms :: Mod CommandFields (RequestInfo (Maybe DeviceId) count)
+-- cliSms
+--   = command "list" (
+--     fullDescInfo $
+--       pure ListSmsReq
+--         <*> option
+--           (fmap pure (DeviceId <$> raw))
+--           (long "device")
+--         <*> option
+--           (SmsThreadId <$> raw)
+--           (long "thread")
+--   )
+--   <> command "send" (
+--     fullDescInfo $
+--       pure SendSmsReq
+--         <*> optional (option (DeviceId <$> raw) (long "device"))
+--         <*> option (PhoneNumber <$> raw) (long "dest")
+--         <*> option raw (long "message")
+--   )
+--   <> command "threads" (
+--     fullDescInfo $
+--       pure ListThreadsReq
+--         <*> optional (option (DeviceId <$> raw) (long "device"))
+--   )
+--
+-- cliDevices :: Mod CommandFields (RequestInfo dev (Maybe Count))
+-- cliDevices
+--   = command "list" $ fullDescInfo (
+--     pure ListDevicesReq
+--       <*> optional (
+--         flag' All (long "all")
+--         <|>
+--         option (Limit <$> auto) (long "limit")
+--       )
+--   )
+
+type Request'
+  = Request IO PushbulletKey
 
 -- | Interprets a computation in the 'Command' monad into a computation in the
 -- 'ClientM' monad that actually performs HTTP requests.
@@ -160,33 +213,18 @@ getPaginatedLimit (Limit n) (Page d (Just c)) next = do
   later <- getPaginatedLimit (Limit n') p next
   pure (d' ++ later)
 
-loadDefaults
-  :: PreRequest
-  -> IO PreparedRequest
-loadDefaults (Request fmt key inf) = Request fmt <$> key' <*> inf' where
-  loadLine p = decodeUtf8 . BS.init <$> readFile p
-
-  key' = maybe (PushbulletKey <$> (loadLine =<< keyPath)) pure key where
-    keyPath = (</> ".pushbulletaccess") <$> getHomeDirectory
-
-  inf' = case inf of
-    ListSmsReq d t -> ListSmsReq <$> maybeLoadDeviceId d <*> pure t
-    ListThreadsReq d -> ListThreadsReq <$> maybeLoadDeviceId d
-    SendSmsReq d n t -> SendSmsReq <$> maybeLoadDeviceId d <*> pure n <*> pure t
-    ListDevicesReq c -> pure $ ListDevicesReq (maybe All id c)
-    where
-      maybeLoadDeviceId = maybe loadDeviceId pure where
-        loadDeviceId = DeviceId <$> (loadLine =<< deviceIdPath) where
-          deviceIdPath = (</> ".phoneDeviceID") <$> getHomeDirectory
-
 data Error
   = ServantError ServantError
   deriving (Eq, Show)
 
 type Response' = Response (ExistsRenderableFormat (FormatM ResponseInfo IO))
 
-run :: PreparedRequest -> IO (Either Error Response')
-run (Request format key req) = do
+run :: Request IO PushbulletKey -> IO ()
+run (Request format key cmd) = do
+  -- prepare the command
+  cmd' <- cmd
+
+  -- get ready to do some motherfucking http requests
   manager <- newManager tlsManagerSettings
   let url = BaseUrl Https "api.pushbullet.com" 443 ""
   -- let url = BaseUrl Http "localhost" 8088 ""
@@ -195,21 +233,12 @@ run (Request format key req) = do
   let runHttp = fmap (first ServantError) . flip runClientM env
         :: forall c. ClientM c -> IO (Either Error c)
 
-  case req of
-    ListSmsReq d t -> do
-      r <- runHttp (httpCommand key $ listSms d t)
-      pure $ Response format <$> (SmsList <$> r)
-    ListThreadsReq d -> do
-      r <- runHttp (httpCommand key $ listThreads d)
-      pure $ Response format <$> (ThreadList <$> r)
-    ListDevicesReq count -> do
-      r <- runHttp (httpCommand key $ listDevices count)
-      pure $ Response format <$> (DeviceList <$> r)
-    SendSmsReq d n t -> do
-      r <- fmap (fmap (const Ok)) $ runHttp $ httpCommand key $ do
-        User {userId = i} <- me
-        sendSms i d n t
-      pure $ Response format <$> r
+  r <- runHttp (httpCommand key cmd')
+
+  let q = match' format <$> r
+  case q of
+    Left e -> ePutStrLn (show e)
+    Right (ExistsRenderableFormat f) -> LBS.putStr =<< renderFormat <$> f
 
 ePutStrLn :: String -> IO ()
 ePutStrLn = hPutStrLn stderr

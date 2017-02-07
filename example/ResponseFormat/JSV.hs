@@ -10,7 +10,7 @@ module ResponseFormat.JSV
 ) where
 
 import Format
-import Response
+import Sum
 
 import Network.Pushbullet.Types
 
@@ -32,12 +32,21 @@ data JsvCell where
 instance ToJSON JsvCell where
   toJSON (JsvCell cell) = toJSON cell
 
-formatJsv :: Monad m => FormatM ResponseInfo m JSV
-formatJsv = FormatM $ \r -> pure $ JSV $ case r of
-  SmsList msgs -> (pure . JsvCell . Formatted) <$> msgs
-  ThreadList threads -> (pure . JsvCell . Formatted) <$> threads
-  DeviceList devices -> (pure . JsvCell . Formatted) <$> devices
-  Ok -> [[JsvCell @T.Text "ok"]]
+formatJsv
+  :: Product '[[SmsMessage], [SmsThread], (), [Device 'Existing]] JSV
+formatJsv
+  = JSV . map pure <$> (sms -| threads -| ok -| devices -| Inexhaustive) where
+    sms :: [SmsMessage] -> [JsvCell]
+    sms = map (JsvCell . Formatted)
+
+    threads :: [SmsThread] -> [JsvCell]
+    threads = map (JsvCell . Formatted)
+
+    devices :: [Device 'Existing] -> [JsvCell]
+    devices = map (JsvCell . Formatted)
+
+    ok :: () -> [JsvCell]
+    ok _ = pure $ JsvCell @T.Text "ok"
 
 -- | A simple newtype wrapper so that we can special ToJSON instances for the
 -- output.

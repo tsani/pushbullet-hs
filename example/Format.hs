@@ -5,10 +5,8 @@
 
 module Format where
 
-import Data.Aeson ( ToJSON(..), encode )
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
-import Data.Monoid ( (<>) )
 import qualified Data.Text as T
 import Data.Text.Encoding ( encodeUtf8 )
 import qualified Text.PrettyPrint.ANSI.Leijen as P
