@@ -1,5 +1,9 @@
 # Revision history for servant-pushbullet-client
 
+## 0.0.3.0  -- 2017-02-10
+
+Forgot to export all those lenses.
+
 ## 0.0.2.0  -- 2017-02-10
 
 Still prerelease. This just adds a bunch of lenses using `microlens-th`.
