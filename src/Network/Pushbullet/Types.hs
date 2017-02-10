@@ -51,6 +51,55 @@ module Network.Pushbullet.Types
 
   -- ** Type-level stuff
 , EqT
+
+  -- * Lenses
+  -- ** Device
+, deviceId
+, deviceActive
+, deviceCreated
+, deviceModified
+, deviceIcon
+, deviceNickname
+, deviceGeneratedNickname
+, deviceManufacturer
+, deviceModel
+, deviceAppVersion
+, deviceFingerprint
+, deviceKeyFingerprint
+  -- ** User
+, userCreated
+, userEmail
+, userEmailNormalized
+, userId
+, userImageUrl
+, userMaxUploadSize
+, userModified
+, userName
+  -- ** SMS
+, smsDirection
+, smsTime
+, smsBody
+, smsId
+, smsSent
+, smsType
+, recipientName
+, recipientAddress
+, recipientNumber
+, threadId
+, threadRecipients
+, threadLatest
+  -- ** Ephemerals
+, ephSmsSourceUser
+, ephSmsTargetDevice
+, ephSmsConversation
+, ephSmsMessage
+  -- ** Clipboard
+, ephClipBody
+, ephClipSourceUser
+, ephClipSourceDevice
+  -- ** Pagination
+, pageData
+, pageCursor
 ) where
 
 import Network.Pushbullet.Types.Device
