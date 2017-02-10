@@ -7,12 +7,10 @@ module Network.Pushbullet.Api where
 
 import Network.Pushbullet.Types
 
-import Data.Aeson ( Object )
 import Data.Proxy
 import Data.Text ( Text )
 import GHC.TypeLits ( Symbol )
 import Servant.API
-import Servant.API.Experimental.Auth
 
 data PushbulletAuth
 
@@ -53,10 +51,10 @@ type PushbulletApiV2
     )
   :<|>
     "permanents" :> (
-        Capture "permanent" (Permanent 'ThreadListK)
+        Capture "permanent" (Permanent 'ThreadList)
           :> Get '[JSON] SmsThreads
       :<|>
-        Capture "permanent" (Permanent 'MessageListK)
+        Capture "permanent" (Permanent 'MessageList)
           :> Get '[JSON] SmsMessages
     )
   )

@@ -3,9 +3,23 @@ module Network.Pushbullet.Types.Status
 , EqT
 ) where
 
+import Network.Pushbullet.Reflection
+
 data Status
   = New
   | Existing
+
+data Status' :: Status -> * where
+  New' :: Status' 'New
+  Existing' :: Status' 'Existing
+
+type instance Demote' ('KProxy :: KProxy Status) = Status'
+
+instance Reflect 'New where
+  reflect _ = New'
+
+instance Reflect 'Existing where
+  reflect _ = Existing'
 
 -- | If the first two types are the same, return the third; else, return unit.
 --

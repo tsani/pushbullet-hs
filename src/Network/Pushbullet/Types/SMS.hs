@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Network.Pushbullet.Types.SMS where
 
 import Data.Aeson
 import Data.Text ( Text )
 import Data.List.NonEmpty ( NonEmpty )
+import Lens.Micro.TH
 
 import Network.Pushbullet.Types.Misc
 import Network.Pushbullet.Types.Time
@@ -24,14 +26,16 @@ data SmsMessageType
 
 data SmsMessage
   = SmsMessage
-    { smsDirection :: !SmsDirection
-    , smsTime :: !PushbulletTime
-    , smsBody :: !Text
-    , smsId :: !SmsId
-    , smsSent :: !(Maybe Bool)
-    , smsType :: !SmsMessageType
+    { _smsDirection :: !SmsDirection
+    , _smsTime :: !PushbulletTime
+    , _smsBody :: !Text
+    , _smsId :: !SmsId
+    , _smsSent :: !(Maybe Bool)
+    , _smsType :: !SmsMessageType
     }
   deriving (Eq, Show)
+
+makeLenses ''SmsMessage
 
 newtype SmsMessages
   = SmsMessages
@@ -39,28 +43,32 @@ newtype SmsMessages
     }
   deriving (Eq, Show)
 
-newtype SmsThreads
-  = SmsThreads
-    { unSmsThreads :: [SmsThread]
+data SmsThreadRecipient
+  = SmsThreadRecipient
+    { _recipientName :: !Name
+    , _recipientAddress :: !PhoneNumber
+    , _recipientNumber :: !PhoneNumber
     }
   deriving (Eq, Show)
 
-data SmsThreadRecipient
-  = SmsThreadRecipient
-    { recipientName :: !Name
-    , recipientAddress :: !PhoneNumber
-    , recipientNumber :: !PhoneNumber
-    }
-  deriving (Eq, Show)
+makeLenses ''SmsThreadRecipient
 
 newtype SmsThreadId = SmsThreadId Text
   deriving (Eq, FromJSON, Show, ToJSON)
 
 data SmsThread
   = SmsThread
-    { threadId :: SmsThreadId
-    , threadRecipients :: NonEmpty SmsThreadRecipient
-    , threadLatest :: SmsMessage
+    { _threadId :: SmsThreadId
+    , _threadRecipients :: NonEmpty SmsThreadRecipient
+    , _threadLatest :: SmsMessage
+    }
+  deriving (Eq, Show)
+
+makeLenses ''SmsThread
+
+newtype SmsThreads
+  = SmsThreads
+    { unSmsThreads :: [SmsThread]
     }
   deriving (Eq, Show)
 

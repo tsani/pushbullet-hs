@@ -213,7 +213,7 @@ instance ToJSON (Push 'New) where
 
     target = case pushTarget of
       ToAll -> []
-      ToDevice deviceId -> [ "device_iden" .= deviceId ]
+      ToDevice d -> [ "device_iden" .= d ]
       ToEmail email -> [ "email" .= email ]
       ToChannel tag -> [ "channel_tag" .= tag ]
       ToClient client -> [ "client_iden" .= client ]

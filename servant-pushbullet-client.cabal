@@ -25,6 +25,7 @@ library
     Network.Pushbullet.Misc,
     Network.Pushbullet.Types
   other-modules:
+    Network.Pushbullet.Reflection
     Network.Pushbullet.Types.Device,
     Network.Pushbullet.Types.Ephemeral,
     Network.Pushbullet.Types.Misc,
@@ -56,6 +57,8 @@ library
     http-api-data >=0.3 && <0.4,
     http-client-tls >=0.3 && <0.4,
     http-client,
+    microlens >=0.4 && <0.5,
+    microlens-th >=0.4 && <0.5,
     scientific >=0.3 && <0.4,
     servant >=0.9 && <0.10,
     servant-client >=0.9 && <0.10,

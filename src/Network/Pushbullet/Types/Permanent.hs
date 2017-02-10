@@ -9,17 +9,17 @@ import Data.Monoid ( (<>) )
 import Web.HttpApiData ( ToHttpApiData(..) )
 
 data PermanentK
-  = ThreadListK
-  | MessageListK
+  = ThreadList
+  | MessageList
 
 data Permanent (p :: PermanentK) where
-  ThreadsOf :: !DeviceId -> Permanent 'ThreadListK
-  MessagesIn :: !DeviceId -> !SmsThreadId -> Permanent 'MessageListK
+  ThreadsOf :: !DeviceId -> Permanent 'ThreadList
+  MessagesIn :: !DeviceId -> !SmsThreadId -> Permanent 'MessageList
 
-instance ToHttpApiData (Permanent 'ThreadListK) where
+instance ToHttpApiData (Permanent 'ThreadList) where
   toUrlPiece p = case p of
     ThreadsOf (DeviceId d) -> d <> "_threads"
 
-instance ToHttpApiData (Permanent 'MessageListK) where
+instance ToHttpApiData (Permanent 'MessageList) where
   toUrlPiece p = case p of
     MessagesIn (DeviceId d) (SmsThreadId t) -> d <> "_thread_" <> t

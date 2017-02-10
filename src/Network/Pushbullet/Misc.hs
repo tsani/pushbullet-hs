@@ -4,7 +4,7 @@
 
 module Network.Pushbullet.Misc where
 
-import Network.Pushbullet.Types ( Cursor(..), Paginated(..) )
+import Network.Pushbullet.Types ( Cursor, Paginated(..) )
 
 -- | A count of items to retrieve from the API.
 data Count
