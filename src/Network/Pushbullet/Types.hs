@@ -66,6 +66,8 @@ module Network.Pushbullet.Types
 , deviceAppVersion
 , deviceFingerprint
 , deviceKeyFingerprint
+, deviceHasSms
+, devicePushToken
   -- ** User
 , userCreated
 , userEmail
