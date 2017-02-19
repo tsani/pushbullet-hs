@@ -22,20 +22,7 @@ library
   exposed-modules:
     Network.Pushbullet.Api,
     Network.Pushbullet.Client,
-    Network.Pushbullet.Misc,
-    Network.Pushbullet.Types
-  other-modules:
-    Network.Pushbullet.Reflection
-    Network.Pushbullet.Types.Device,
-    Network.Pushbullet.Types.Ephemeral,
-    Network.Pushbullet.Types.Misc,
-    Network.Pushbullet.Types.Pagination,
-    Network.Pushbullet.Types.Permanent,
-    Network.Pushbullet.Types.Push,
-    Network.Pushbullet.Types.SMS,
-    Network.Pushbullet.Types.Status,
-    Network.Pushbullet.Types.Time,
-    Network.Pushbullet.Types.User
+    Network.Pushbullet.Misc
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:
@@ -52,6 +39,7 @@ library
     TypeFamilies
     TypeApplications
   build-depends:
+    pushbullet-types >=0.0.1 && <0.1,
     aeson >=0.11 && <1.1,
     base >=4.9 && <4.10,
     http-api-data >=0.3 && <0.4,
