@@ -1,5 +1,15 @@
 # Revision history for servant-pushbullet-client
 
+## 0.1.0.0  -- 2017-02-20
+
+The bulk of the library has been moved into a separate library
+[pushbullet-types](https://github.com/tsani/pushbullet-types).
+
+This library now just defines the Pushbullet API-as-a-type and applies
+servant-client's `client` function to produce the functions for querying the
+Pushbullet API. Also included in this library proper is a utility function for
+consuming paginated data returned from Pushbullet.
+
 ## 0.0.3.0  -- 2017-02-10
 
 Forgot to export all those lenses.
