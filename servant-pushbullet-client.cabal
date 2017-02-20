@@ -18,6 +18,10 @@ build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
+source-repository head
+  type: git
+  location: https://github.com/tsani/servant-pushbullet-client
+
 library
   exposed-modules:
     Network.Pushbullet.Api,
