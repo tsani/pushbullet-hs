@@ -10,6 +10,7 @@ module Network.Pushbullet.Types
 , ExistingPushes(..)
   -- * Ephemerals
 , Ephemeral(..)
+, Notification(..)
   -- * Devices
 , Device(..)
 , DeviceId(..)
