@@ -8,7 +8,10 @@ import Data.Time.Clock.POSIX ( utcTimeToPOSIXSeconds, posixSecondsToUTCTime )
 import Web.HttpApiData ( ToHttpApiData(..) )
 
 newtype PushbulletTime = PushbulletTime UTCTime
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Read, Show)
+
+minPushbulletTime :: PushbulletTime
+minPushbulletTime = PushbulletTime (posixSecondsToUTCTime 0)
 
 instance ToHttpApiData PushbulletTime where
   toUrlPiece (PushbulletTime utc) = fromString (show d) where

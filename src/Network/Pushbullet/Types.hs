@@ -47,6 +47,7 @@ module Network.Pushbullet.Types
 , TrivialObject(..)
 , Status(..)
 , PushbulletTime(..)
+, minPushbulletTime
 , PhoneNumber(..)
 , Name(..)
 
