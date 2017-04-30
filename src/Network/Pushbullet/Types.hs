@@ -10,6 +10,8 @@ module Network.Pushbullet.Types
 , ExistingPushes(..)
   -- * Ephemerals
 , Ephemeral(..)
+, PushEphemeral(..)
+, TickleType(..)
 , Notification(..)
   -- * Devices
 , Device(..)

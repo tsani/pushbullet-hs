@@ -28,7 +28,27 @@ data Notification
 
 makeLenses ''Notification
 
+data TickleType
+  = PushType
+  | OtherType Text
+
+instance ToJSON TickleType where
+  toJSON t = case t of
+    PushType -> "push"
+    OtherType t' -> toJSON t'
+
+instance FromJSON TickleType where
+  parseJSON (String s) = pure $ case s of
+    "push" -> PushType
+    _ -> OtherType s
+  parseJSON _ = fail "cannot parse tickle type from non-string"
+
 data Ephemeral
+  = PushEphemeral PushEphemeral
+  | Nop
+  | Tickle TickleType
+
+data PushEphemeral
   = Sms
     { _ephSmsSourceUser :: !UserId
     , _ephSmsTargetDevice :: !DeviceId
@@ -46,62 +66,70 @@ data Ephemeral
     }
   deriving (Eq, Show)
 
-makeLenses ''Ephemeral
+makeLenses ''PushEphemeral
 
 instance ToJSON Ephemeral where
   toJSON o = case o of
-    Sms{..} -> object
+    Nop -> object
+      [ "type" .= id @Text "nop"
+      ]
+    Tickle subtype -> object
+      [ "type" .= id @Text "tickle"
+      , "subtype" .= subtype
+      ]
+    PushEphemeral pushEphemeral -> object
       [ "type" .= id @Text "push"
-      , "push" .= object
-        [ "type" .= id @Text "messaging_extension_reply"
-        , "package_name" .= id @Text "com.pushbullet.android"
-        , "source_user_iden" .= _ephSmsSourceUser
-        , "target_device_iden" .= _ephSmsTargetDevice
-        , "conversation_iden" .= _ephSmsConversation
-        , "message" .= _ephSmsMessage
-        ]
+      , "push" .= pushEphemeral
+      ]
+
+instance ToJSON PushEphemeral where
+  toJSON o = case o of
+    Sms{..} ->  object
+      [ "type" .= id @Text "messaging_extension_reply"
+      , "package_name" .= id @Text "com.pushbullet.android"
+      , "source_user_iden" .= _ephSmsSourceUser
+      , "target_device_iden" .= _ephSmsTargetDevice
+      , "conversation_iden" .= _ephSmsConversation
+      , "message" .= _ephSmsMessage
       ]
     Clipboard{..} -> object
-      [ "type" .= id @Text "push"
-      , "push" .= object
-        [ "type" .= id @Text "clip"
-        , "body" .= _ephClipBody
-        , "source_user_iden" .= _ephClipSourceUser
-        , "source_device_iden" .= _ephClipSourceDevice
-        ]
+      [ "type" .= id @Text "clip"
+      , "body" .= _ephClipBody
+      , "source_user_iden" .= _ephClipSourceUser
+      , "source_device_iden" .= _ephClipSourceDevice
       ]
     SmsChanged{..} -> object
-      [ "type" .= id @Text "push"
-      , "push" .= object
-        [ "type" .= id @Text "sms_changed"
-        , "source_device_iden" .= _ephSourceDevice
-        , "notifications" .= _ephNotifications
-        ]
+      [ "type" .= id @Text "sms_changed"
+      , "source_device_iden" .= _ephSourceDevice
+      , "notifications" .= _ephNotifications
       ]
 
 instance FromJSON Ephemeral where
   parseJSON (Object o) = do
     t <- o .: "type"
-    guard (t == id @Text "push")
-    p <- o .: "push"
-    case p of
-      Object p' -> do
-        t' <- p' .: "type"
-        case t' of
-          "messaging_extension_reply" -> pure Sms
-            <*> p' .: "source_user_iden"
-            <*> p' .: "target_device_iden"
-            <*> p' .: "conversation_iden"
-            <*> p' .: "message"
-          "clip" -> pure Clipboard
-            <*> p' .: "body"
-            <*> p' .: "source_user_iden"
-            <*> p' .: "source_device_iden"
-          "sms_changed" -> pure SmsChanged
-            <*> p' .: "source_device_iden"
-            <*> p' .: "notifications"
-          _ -> fail $ "unknown push type " <> t'
-      _ -> fail "cannot parse push from non-object"
+    case id @Text t of
+      "nop" -> pure Nop
+      "tickle" -> Tickle <$> o .: "subtype"
+      "push" -> PushEphemeral <$> o .: "push"
+      _ -> fail "unknown ephemeral type"
+
+instance FromJSON PushEphemeral where
+  parseJSON (Object o) = do
+    t' <- o .: "type"
+    case t' of
+      "messaging_extension_reply" -> pure Sms
+        <*> o .: "source_user_iden"
+        <*> o .: "target_device_iden"
+        <*> o .: "conversation_iden"
+        <*> o .: "message"
+      "clip" -> pure Clipboard
+        <*> o .: "body"
+        <*> o .: "source_user_iden"
+        <*> o .: "source_device_iden"
+      "sms_changed" -> pure SmsChanged
+        <*> o .: "source_device_iden"
+        <*> o .: "notifications"
+      _ -> fail $ "unknown push type " <> t'
 
 instance ToJSON Notification where
   toJSON n = object
