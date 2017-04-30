@@ -1,5 +1,9 @@
 # Revision history for servant-pushbullet-client
 
+## 0.2.0.0  -- 2017-04-30
+
+Adjust argument order for a function, so `Cursor` arguments are always last.
+
 ## 0.1.0.0  -- 2017-02-20
 
 The bulk of the library has been moved into a separate library
