@@ -19,7 +19,7 @@ newtype ClientId = ClientId Text
 newtype MimeType = MimeType Text
   deriving (Eq, FromJSON, Show, ToJSON)
 
-newtype Url = Url Text
+newtype Url = Url { unUrl :: Text }
   deriving (Eq, FromJSON, Show, ToJSON)
 
 newtype Guid = Guid Text

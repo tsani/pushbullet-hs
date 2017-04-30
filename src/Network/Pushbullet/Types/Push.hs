@@ -71,20 +71,20 @@ data PushTarget (s :: Status) where
 -- | The actual contents of a push.
 data PushData (s :: Status)
   = NotePush
-    { pushTitle :: !Text
+    { pushTitle :: !(Maybe Text)
     , pushBody :: !Text
     }
   | LinkPush
-    { pushTitle :: !Text
+    { pushTitle :: !(Maybe Text)
     , pushBody :: !Text
     , pushUrl :: !Url
     }
   | FilePush
-    { pushBody :: !Text
+    { pushFileBody :: !(Maybe Text)
     , pushFileName :: !Text
     , pushFileType :: !MimeType
     , pushFileUrl :: !Url
-    , pushFileTitle :: !(EqT 'Existing s Text)
+    , pushFileTitle :: !(EqT 'Existing s (Maybe Text))
     , pushImageUrl :: !(EqT 'Existing s (Maybe Url))
     , pushImageWidth :: !(EqT 'Existing s (Maybe Int))
     , pushImageHeight :: !(EqT 'Existing s (Maybe Int))
@@ -99,7 +99,10 @@ data PushOrigin
 -- | A newtype wrapper for a list of existing pushes. We need this to get a
 -- nonstandard 'FromJSON' instance for the list, because Pushbullet gives us
 -- the list wrapped in a trivial object with one key.
-newtype ExistingPushes = ExistingPushes [Push 'Existing]
+newtype ExistingPushes
+  = ExistingPushes
+    { unExistingPushes :: [Push 'Existing]
+    }
   deriving (Eq, Show)
 
 -- | Constructs a new @Push@ with the source device and guid set to @Nothing@.
@@ -156,19 +159,19 @@ instance FromJSON (Push 'Existing) where
     pushType <- o .: "type"
     d <- case id @Text pushType of
       "note" -> pure NotePush
-        <*> o .: "title"
+        <*> o .:? "title"
         <*> o .: "body"
       "file" -> pure FilePush
         <*> o .: "body"
         <*> o .: "file_name"
         <*> o .: "file_type"
         <*> o .: "file_url"
-        <*> o .: "file_title"
+        <*> o .:? "file_title"
         <*> o .:? "image_url"
         <*> o .:? "image_width"
         <*> o .:? "image_height"
       "link" -> pure LinkPush
-        <*> o .: "title"
+        <*> o .:? "title"
         <*> o .: "body"
         <*> o .: "url"
       _ -> fail "unrecognized push type"
@@ -232,7 +235,7 @@ instance ToJSON (Push 'New) where
         ]
       FilePush{..} ->
         [ "type" .= id @Text "file"
-        , "body" .= pushBody
+        , "body" .= pushFileBody
         , "file_name" .= pushFileName
         , "file_type" .= pushFileType
         , "file_url" .= pushFileUrl
