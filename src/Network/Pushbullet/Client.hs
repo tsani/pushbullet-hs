@@ -19,8 +19,8 @@ getPushes
   :: Auth
   -> Maybe PushbulletTime
   -> Maybe Bool
-  -> Maybe Cursor
   -> Maybe Int
+  -> Maybe Cursor
   -> ClientM (Paginated ExistingPushes)
 createEphemeral :: Auth -> Ephemeral -> ClientM TrivialObject
 getMe :: Auth -> ClientM User

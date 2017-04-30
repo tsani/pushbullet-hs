@@ -27,8 +27,8 @@ type PushbulletApiV2
       :<|>
         QueryParam "modified_after" PushbulletTime
         :> QueryParam "active" Bool
-        :> QueryParam "cursor" Cursor
         :> QueryParam "limit" Int
+        :> QueryParam "cursor" Cursor
         :> Get '[JSON] (Paginated ExistingPushes)
     )
   :<|>
