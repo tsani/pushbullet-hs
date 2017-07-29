@@ -1,5 +1,9 @@
 # Revision history for servant-pushbullet-client
 
+## 0.3.0.0  -- 2017-07-29
+
+Bump dependency on pushbullet-types to require version 0.3.
+
 ## 0.2.0.0  -- 2017-04-30
 
 Adjust argument order for a function, so `Cursor` arguments are always last.
