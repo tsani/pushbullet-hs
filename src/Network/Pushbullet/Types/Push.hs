@@ -162,7 +162,7 @@ instance FromJSON (Push 'Existing) where
         <*> o .:? "title"
         <*> o .: "body"
       "file" -> pure FilePush
-        <*> o .: "body"
+        <*> o .:? "body"
         <*> o .: "file_name"
         <*> o .: "file_type"
         <*> o .: "file_url"
