@@ -31,6 +31,7 @@ makeLenses ''Notification
 data TickleType
   = PushType
   | OtherType Text
+  deriving (Eq, Show)
 
 instance ToJSON TickleType where
   toJSON t = case t of
@@ -47,6 +48,8 @@ data Ephemeral
   = PushEphemeral PushEphemeral
   | Nop
   | Tickle TickleType
+  deriving (Eq, Show)
+
 
 data PushEphemeral
   = Sms
