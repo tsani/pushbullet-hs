@@ -1,5 +1,18 @@
 # Revision history for pushbullet-types
 
+## 0.3.0.0  -- 2017-07-29
+
+* `PushEphemeral` now supports the `targets` field, which allows to more
+  faithfully parse clipboard synchronization messages in the realtime event
+  stream.
+* Missing `Eq` and `Show` instances for `Ephemeral` are now derived.
+* Missing device-related datatypes and constructors are now exported.
+* Values commonly used by PushBullet for the DeviceIcon type now have a bunch
+  of constants exported for them.
+* Aeson version upper bound is now higher; this version of pushbullet-types
+  will now build with Stackage resolver lts-9.0.
+* Misc code cleanup.
+
 ## 0.2.0.0  -- 2017-04-30
 
 * Some fields in `PushData` are now made optional, since the objects received
