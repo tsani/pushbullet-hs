@@ -40,18 +40,19 @@ module Network.Pushbullet.Types
   -- * Misc
   --
   -- ** Data
-, EmailAddress(..)
 , ChannelTag(..)
 , ClientId(..)
-, MimeType(..)
-, Url(..)
+, EmailAddress(..)
 , Guid(..)
-, TrivialObject(..)
-, Status(..)
-, PushbulletTime(..)
-, minPushbulletTime
-, PhoneNumber(..)
+, MimeType(..)
 , Name(..)
+, PhoneNumber(..)
+, PushId(..)
+, PushbulletTime(..)
+, Status(..)
+, TrivialObject(..)
+, Url(..)
+, minPushbulletTime
 
   -- ** Type-level stuff
 , EqT
