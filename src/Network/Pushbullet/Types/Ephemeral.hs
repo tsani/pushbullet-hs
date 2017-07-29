@@ -45,11 +45,23 @@ instance FromJSON TickleType where
   parseJSON _ = fail "cannot parse tickle type from non-string"
 
 data Ephemeral
-  = PushEphemeral PushEphemeral
+  = PushEphemeral !(Maybe [EphemeralTarget]) !PushEphemeral
   | Nop
-  | Tickle TickleType
+  | Tickle !TickleType
   deriving (Eq, Show)
 
+newtype EphemeralTarget
+  = EphemeralTarget Text
+  deriving (Eq, FromJSON, Show, ToJSON)
+
+ephemeralTargetIOS, ephemeralTargetStream, ephemeralTargetAndroid
+  :: EphemeralTarget
+ephemeralTargetIOS = EphemeralTarget "ios"
+ephemeralTargetStream = EphemeralTarget "stream"
+ephemeralTargetAndroid = EphemeralTarget "android"
+
+allEphemeralTargets :: [EphemeralTarget]
+allEphemeralTargets = map EphemeralTarget [ "stream", "ios", "android" ]
 
 data PushEphemeral
   = Sms
@@ -80,10 +92,13 @@ instance ToJSON Ephemeral where
       [ "type" .= id @Text "tickle"
       , "subtype" .= subtype
       ]
-    PushEphemeral pushEphemeral -> object
+    PushEphemeral targets pushEphemeral -> object $
       [ "type" .= id @Text "push"
       , "push" .= pushEphemeral
       ]
+      ++ case targets of
+        Nothing -> []
+        Just ts -> [ "targets" .= ts ]
 
 instance ToJSON PushEphemeral where
   toJSON o = case o of
@@ -113,7 +128,7 @@ instance FromJSON Ephemeral where
     case id @Text t of
       "nop" -> pure Nop
       "tickle" -> Tickle <$> o .: "subtype"
-      "push" -> PushEphemeral <$> o .: "push"
+      "push" -> PushEphemeral <$> o .:? "targets" <*> o .: "push"
       _ -> fail "unknown ephemeral type"
 
 instance FromJSON PushEphemeral where

@@ -11,8 +11,14 @@ module Network.Pushbullet.Types
   -- * Ephemerals
 , Ephemeral(..)
 , PushEphemeral(..)
+, EphemeralTarget
 , TickleType(..)
 , Notification(..)
+  -- ** Ephemeral targets
+, allEphemeralTargets
+, ephemeralTargetIOS
+, ephemeralTargetAndroid
+, ephemeralTargetStream
   -- * Devices
 , Device(..)
 , DeviceId(..)
