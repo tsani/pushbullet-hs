@@ -17,7 +17,12 @@ module Network.Pushbullet.Types
 , Device(..)
 , DeviceId(..)
 , Nickname(..)
+, Manufacturer(..)
+, Model(..)
 , DeviceIcon(..)
+, AppVersion(..)
+, KeyFingerprint(..)
+, PushToken(..)
 , HasSms(..)
 , ExistingDevices(..)
 , newDevice
