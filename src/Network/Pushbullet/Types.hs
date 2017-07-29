@@ -21,6 +21,15 @@ module Network.Pushbullet.Types
 , HasSms(..)
 , ExistingDevices(..)
 , newDevice
+  -- ** Device icons
+, deviceIconDesktop
+, deviceIconBrowser
+, deviceIconWebsite
+, deviceIconLaptop
+, deviceIconTablet
+, deviceIconPhone
+, deviceIconWatch
+, deviceIconSystem
   -- * Users
 , User(..)
 , UserId(..)

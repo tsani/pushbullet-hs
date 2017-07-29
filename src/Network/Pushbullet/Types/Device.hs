@@ -14,8 +14,28 @@ import Web.HttpApiData ( ToHttpApiData(..) )
 newtype DeviceId = DeviceId Text
   deriving (Eq, FromJSON, Show, ToJSON, ToHttpApiData)
 
+-- | An arbitrary string describing what icon to use.
+-- Common values, which pushbullet will actually display decent icons for, are
+-- provided.
 newtype DeviceIcon = DeviceIcon Text
   deriving (Eq, ToJSON, Show, FromJSON)
+
+deviceIconDesktop,
+  deviceIconBrowser,
+  deviceIconWebsite,
+  deviceIconLaptop,
+  deviceIconTablet,
+  deviceIconPhone,
+  deviceIconWatch,
+  deviceIconSystem :: DeviceIcon
+deviceIconDesktop = DeviceIcon "desktop"
+deviceIconBrowser = DeviceIcon "browser"
+deviceIconWebsite = DeviceIcon "website"
+deviceIconLaptop = DeviceIcon "laptop"
+deviceIconTablet = DeviceIcon "tablet"
+deviceIconPhone = DeviceIcon "phone"
+deviceIconWatch = DeviceIcon "watch"
+deviceIconSystem = DeviceIcon "system"
 
 newtype Nickname = Nickname Text
   deriving (Eq, ToJSON, Show, FromJSON)
