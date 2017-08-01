@@ -1,5 +1,10 @@
 # Revision history for servant-pushbullet-client
 
+## 0.4.0.0  -- 2017-08-01
+
+Bump dependency on pushbullet-types to require version 0.4. This version
+includes important bug fixes for pushes sent by channels.
+
 ## 0.3.0.0  -- 2017-07-29
 
 Bump dependency on pushbullet-types to require version 0.3.
