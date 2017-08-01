@@ -4,9 +4,9 @@ module Network.Pushbullet.Types.Push
 ( Push(..)
 , PushId(..)
 , PushDirection(..)
+, PushSender(..)
 , PushTarget(..)
 , PushData(..)
-, PushOrigin(..)
 , ExistingPushes(..)
 , simpleNewPush
 ) where
@@ -37,15 +37,31 @@ data Push (s :: Status)
     , pushModified :: !(EqT 'Existing s PushbulletTime)
     , pushDismissed :: !(EqT 'Existing s Bool)
     , pushDirection :: !(EqT 'Existing s PushDirection)
-    , pushSender :: !(EqT 'Existing s UserId)
-    , pushSenderEmail :: !(EqT 'Existing s EmailAddress)
-    , pushSenderEmailNormalized :: !(EqT 'Existing s EmailAddress)
-    , pushSenderName :: !(EqT 'Existing s Name)
-    , pushReceiver :: !(EqT 'Existing s UserId)
-    , pushReceiverEmail :: !(EqT 'Existing s EmailAddress)
-    , pushReceiverEmailNormalized :: !(EqT 'Existing s EmailAddress)
-    , pushOrigin :: !(EqT 'Existing s (Maybe PushOrigin))
+    , pushSender :: !(EqT 'Existing s PushSender)
+    , pushReceiver :: !(EqT 'Existing s (Maybe PushReceiver))
     }
+
+data PushReceiver
+  = ReceivedByUser
+    { pushReceiverUserId :: !UserId
+    , pushReceiverEmail :: !EmailAddress
+    , pushReceiverEmailNormalized :: !EmailAddress
+    }
+  deriving (Eq, Show)
+
+data PushSender
+  = SentByUser
+    { pushSenderUserId :: !UserId
+    , pushSenderClientId :: !ClientId
+    , pushSenderUserEmail :: !EmailAddress
+    , pushSenderUserEmailNormalized :: !EmailAddress
+    , pushSenderName :: !Name
+    }
+  | SentByChannel
+    { pushSenderChannelId :: !ChannelId
+    , pushSenderName :: !Name
+    }
+  deriving (Eq, Show)
 
 -- | Unique identifier for a push.
 newtype PushId = PushId Text
@@ -90,12 +106,6 @@ data PushData (s :: Status)
     , pushImageHeight :: !(EqT 'Existing s (Maybe Int))
     }
 
--- | The origin of a push.
-data PushOrigin
-  = FromClient !ClientId
-  | FromChannel !ChannelId
-  deriving (Eq, Show)
-
 -- | A newtype wrapper for a list of existing pushes. We need this to get a
 -- nonstandard 'FromJSON' instance for the list, because Pushbullet gives us
 -- the list wrapped in a trivial object with one key.
@@ -119,13 +129,7 @@ simpleNewPush t d = Push
   , pushDismissed = ()
   , pushDirection = ()
   , pushSender = ()
-  , pushSenderEmail = ()
-  , pushSenderEmailNormalized = ()
-  , pushSenderName = ()
   , pushReceiver = ()
-  , pushReceiverEmail = ()
-  , pushReceiverEmailNormalized = ()
-  , pushOrigin = ()
   }
 
 instance ToJSON PushDirection where
@@ -157,6 +161,7 @@ deriving instance Show (Push 'Existing)
 instance FromJSON (Push 'Existing) where
   parseJSON (Object o) = do
     pushType <- o .: "type"
+
     d <- case id @Text pushType of
       "note" -> pure NotePush
         <*> o .:? "title"
@@ -175,9 +180,23 @@ instance FromJSON (Push 'Existing) where
         <*> o .:? "body"
         <*> o .: "url"
       _ -> fail "unrecognized push type"
+
     client <- o .:? "client_iden"
     channel <- o .:? "channel_iden"
-    let origin = (FromClient <$> client) <|> (FromChannel <$> channel)
+    email <- o .:? "sender_email"
+    emailNorm <- o .:? "sender_email_normalized"
+    user <- o .:? "sender_iden"
+    name <- o .:? "sender_name"
+
+    let u = SentByUser <$> user <*> client <*> email <*> emailNorm <*> name
+    let c = SentByChannel <$> channel <*> name
+    sender <- maybe (fail "push not sent by channel or by user") pure (u <|> c)
+
+    recvId <- o .:? "receiver_iden"
+    recvEmail <- o .:? "receiver_email"
+    recvEmailNorm <- o .:? "receiver_email_normalized"
+
+    let receiver = ReceivedByUser <$> recvId <*> recvEmail <*> recvEmailNorm
 
     pure Push
       <*> pure d
@@ -190,14 +209,9 @@ instance FromJSON (Push 'Existing) where
       <*> o .: "modified"
       <*> o .: "dismissed"
       <*> o .: "direction"
-      <*> o .: "sender_iden"
-      <*> o .: "sender_email"
-      <*> o .: "sender_email_normalized"
-      <*> o .: "sender_name"
-      <*> o .: "receiver_iden"
-      <*> o .: "receiver_email"
-      <*> o .: "receiver_email_normalized"
-      <*> pure origin
+      <*> pure sender
+      <*> pure receiver
+
   parseJSON _ = fail "cannot parse push from non-object"
 
 instance FromJSON ExistingPushes where
