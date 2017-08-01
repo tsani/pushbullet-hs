@@ -76,7 +76,7 @@ data PushData (s :: Status)
     }
   | LinkPush
     { pushTitle :: !(Maybe Text)
-    , pushBody :: !Text
+    , pushLinkBody :: !(Maybe Text)
     , pushUrl :: !Url
     }
   | FilePush
@@ -172,7 +172,7 @@ instance FromJSON (Push 'Existing) where
         <*> o .:? "image_height"
       "link" -> pure LinkPush
         <*> o .:? "title"
-        <*> o .: "body"
+        <*> o .:? "body"
         <*> o .: "url"
       _ -> fail "unrecognized push type"
     client <- o .:? "client_iden"
@@ -230,7 +230,7 @@ instance ToJSON (Push 'New) where
       LinkPush{..} ->
         [ "type" .= id @Text "link"
         , "title" .= pushTitle
-        , "body" .= pushBody
+        , "body" .= pushLinkBody
         , "url" .= pushUrl
         ]
       FilePush{..} ->
