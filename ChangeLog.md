@@ -1,5 +1,17 @@
 # Revision history for pushbullet-types
 
+## 0.4.0.0  -- 2017-08-01
+
+* Make `body` field of link pushes optional. Many channel pushes do not include
+  a body, but only the URL and the title.
+* Improve `Push` parsing. Push sender and receiver information are factored out
+  into separate datatypes, and parsed as a whole. Either you have a full sender
+  (either a client or a channel) or you don't have any of its fields.  Same
+  applies to receivers, except that only clients can be receivers, and don't
+  have names. This fixes a bug where pushes sent by channels could not be
+  parsed, since such pushes omit certain fields, such as `sender_iden` and
+  `sender_email`.
+
 ## 0.3.0.0  -- 2017-07-29
 
 * `PushEphemeral` now supports the `targets` field, which allows to more
