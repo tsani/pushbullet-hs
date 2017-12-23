@@ -6,6 +6,8 @@ module Network.Pushbullet.Types
 , Push(..)
 , PushData(..)
 , PushTarget(..)
+, PushSender(..)
+, PushReceiver(..)
 , simpleNewPush
 , ExistingPushes(..)
   -- * Ephemerals

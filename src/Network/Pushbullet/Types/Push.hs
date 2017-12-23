@@ -6,6 +6,7 @@ module Network.Pushbullet.Types.Push
 , PushDirection(..)
 , PushSender(..)
 , PushTarget(..)
+, PushReceiver(..)
 , PushData(..)
 , ExistingPushes(..)
 , simpleNewPush
@@ -52,7 +53,7 @@ data PushReceiver
 data PushSender
   = SentByUser
     { pushSenderUserId :: !UserId
-    , pushSenderClientId :: !ClientId
+    , pushSenderClientId :: !(Maybe ClientId)
     , pushSenderUserEmail :: !EmailAddress
     , pushSenderUserEmailNormalized :: !EmailAddress
     , pushSenderName :: !Name
@@ -96,11 +97,11 @@ data PushData (s :: Status)
     , pushUrl :: !Url
     }
   | FilePush
-    { pushFileBody :: !(Maybe Text)
+    { pushTitle :: !(Maybe Text)
+    , pushFileBody :: !(Maybe Text)
     , pushFileName :: !Text
     , pushFileType :: !MimeType
     , pushFileUrl :: !Url
-    , pushFileTitle :: !(EqT 'Existing s (Maybe Text))
     , pushImageUrl :: !(EqT 'Existing s (Maybe Url))
     , pushImageWidth :: !(EqT 'Existing s (Maybe Int))
     , pushImageHeight :: !(EqT 'Existing s (Maybe Int))
@@ -167,11 +168,11 @@ instance FromJSON (Push 'Existing) where
         <*> o .:? "title"
         <*> o .: "body"
       "file" -> pure FilePush
+        <*> o .:? "file_title"
         <*> o .:? "body"
         <*> o .: "file_name"
         <*> o .: "file_type"
         <*> o .: "file_url"
-        <*> o .:? "file_title"
         <*> o .:? "image_url"
         <*> o .:? "image_width"
         <*> o .:? "image_height"
@@ -188,7 +189,8 @@ instance FromJSON (Push 'Existing) where
     user <- o .:? "sender_iden"
     name <- o .:? "sender_name"
 
-    let u = SentByUser <$> user <*> client <*> email <*> emailNorm <*> name
+    let f x1 x2 x3 x4 = SentByUser x1 client x2 x3 x4
+    let u = f <$> user <*> email <*> emailNorm <*> name
     let c = SentByChannel <$> channel <*> name
     sender <- maybe (fail "push not sent by channel or by user") pure (u <|> c)
 
