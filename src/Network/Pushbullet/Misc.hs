@@ -40,3 +40,12 @@ getPaginatedLimit (Limit n) (Page d (Just c)) next = do
   p <- next c
   later <- getPaginatedLimit (Limit n') p next
   pure (d' ++ later)
+
+getPaginatedLimit'
+  :: Monad m
+  => Count
+  -> (Maybe Cursor -> m (Paginated [a]))
+  -> m [a]
+getPaginatedLimit' c next = do
+  page <- next Nothing
+  getPaginatedLimit c page (next . Just)
