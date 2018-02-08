@@ -1,5 +1,9 @@
 # Revision history for pushbullet-types
 
+## 0.4.0.1  -- 2018-02-08
+
+* Drop upper bounds on dependencies.
+
 ## 0.4.0.0  -- 2017-08-01
 
 * Make `body` field of link pushes optional. Many channel pushes do not include
