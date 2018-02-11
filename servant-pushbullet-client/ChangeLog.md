@@ -1,5 +1,12 @@
 # Revision history for servant-pushbullet-client
 
+## 0.5.0.0  -- 2018-02-11
+
+* Require version 0.4.0.2 of pushbullet-types.
+* Define a client function for deleting a push.
+* Define a client function for getting a single push.
+  Note: this API endpoint is undocumented.
+
 ## 0.4.0.0  -- 2017-08-01
 
 Bump dependency on pushbullet-types to require version 0.4. This version

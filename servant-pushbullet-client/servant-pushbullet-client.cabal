@@ -2,7 +2,7 @@
 -- further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                servant-pushbullet-client
-version:             0.4.0.1
+version:             0.5.0.0
 synopsis:            Bindings to the Pushbullet API using servant-client
 description:
   This library describes the Pushbullet API as a type, and uses servant-client
