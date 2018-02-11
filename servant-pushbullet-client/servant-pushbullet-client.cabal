@@ -45,7 +45,7 @@ library
   build-depends:
     pushbullet-types >=0.4.0.2,
     aeson >=0.11,
-    base >=4.9,
+    base >=4.9 && <5,
     http-api-data >=0.3,
     http-client-tls >=0.3,
     http-client >=0.5,
