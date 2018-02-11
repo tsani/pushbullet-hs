@@ -48,7 +48,7 @@ library
     TypeFamilies
     TypeApplications
   build-depends:
-    pushbullet-types >=0.4,
+    pushbullet-types >=0.4.0.2,
     aeson >=0.11,
     base >=4.9,
     http-api-data >=0.3,
