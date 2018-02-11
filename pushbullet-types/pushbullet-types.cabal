@@ -49,7 +49,7 @@ library
     Network.Pushbullet.Types.User
   build-depends:
     aeson >=0.11,
-    base >=4.9,
+    base >=4.9 && <5,
     http-api-data >=0.3,
     microlens >=0.4,
     microlens-th >=0.4,
