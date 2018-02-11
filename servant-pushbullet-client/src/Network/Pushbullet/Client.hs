@@ -22,6 +22,10 @@ getPushes
   -> Maybe Int
   -> Maybe Cursor
   -> ClientM (Paginated ExistingPushes)
+deletePush
+  :: Auth
+  -> PushId
+  -> ClientM TrivialObject
 createEphemeral :: Auth -> Ephemeral -> ClientM TrivialObject
 getMe :: Auth -> ClientM User
 getDevices
@@ -45,7 +49,7 @@ getSmsMessages
   :: Auth
   -> Permanent 'MessageList
   -> ClientM SmsMessages
-(createPush :<|> getPushes)
+(createPush :<|> getPushes :<|> deletePush)
   :<|> createEphemeral
   :<|> getMe
   :<|> (getDevices :<|> createDevice :<|> deleteDevice)
