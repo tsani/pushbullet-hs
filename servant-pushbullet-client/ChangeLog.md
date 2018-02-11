@@ -16,7 +16,7 @@ Adjust argument order for a function, so `Cursor` arguments are always last.
 ## 0.1.0.0  -- 2017-02-20
 
 The bulk of the library has been moved into a separate library
-[pushbullet-types](https://github.com/tsani/pushbullet-types).
+pushbullet-types.
 
 This library now just defines the Pushbullet API-as-a-type and applies
 servant-client's `client` function to produce the functions for querying the
