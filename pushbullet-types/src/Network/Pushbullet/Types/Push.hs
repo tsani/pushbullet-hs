@@ -21,6 +21,7 @@ import Network.Pushbullet.Types.User
 import Control.Applicative ( (<|>) )
 import Data.Aeson
 import Data.Text ( Text )
+import Web.HttpApiData ( ToHttpApiData )
 
 -- | A push. We reuse the same datatype for representing new pushes and
 -- existing pushes. The 'EqT' type family is used to enable fields selectively
@@ -66,7 +67,7 @@ data PushSender
 
 -- | Unique identifier for a push.
 newtype PushId = PushId Text
-  deriving (Eq, FromJSON, Show, ToJSON)
+  deriving (Eq, FromJSON, Show, ToJSON, ToHttpApiData)
 
 -- | The direction of a push.
 data PushDirection
