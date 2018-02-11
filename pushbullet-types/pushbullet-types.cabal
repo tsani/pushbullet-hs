@@ -17,12 +17,7 @@ cabal-version:       >=1.10
 
 source-repository head
   type: git
-  location: https://github.com/tsani/pushbullet-types
-
-source-repository this
-  type: git
-  location: https://github.com/tsani/pushbullet-types/releases/tag/v0.4.0.2
-  tag: v0.4.0.2
+  location: https://github.com/tsani/pushbullet-hs
 
 library
   default-language:    Haskell2010
