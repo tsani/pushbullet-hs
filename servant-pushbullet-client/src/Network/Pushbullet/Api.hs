@@ -31,8 +31,9 @@ type PushbulletApiV2
         :> QueryParam "cursor" Cursor
         :> Get '[JSON] (Paginated ExistingPushes)
       :<|>
-        Capture "iden" PushId
-        :> Delete '[JSON] TrivialObject
+        Capture "iden" PushId :> Delete '[JSON] TrivialObject
+      :<|>
+        Capture "iden" PushId :> Get '[JSON] (Push 'Existing)
     )
   :<|>
     "ephemerals"
