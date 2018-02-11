@@ -1,5 +1,9 @@
 # Revision history for pushbullet-types
 
+## 0.4.0.2  -- 2018-02-11
+
+* Derive `ToHttpApiData` for `PushId`.
+
 ## 0.4.0.1  -- 2018-02-08
 
 * Drop upper bounds on dependencies.
