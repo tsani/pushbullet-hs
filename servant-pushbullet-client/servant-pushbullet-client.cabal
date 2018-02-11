@@ -22,11 +22,6 @@ source-repository head
   type: git
   location: https://github.com/tsani/pushbullet-hs
 
-source-repository this
-  type: git
-  location: https://github.com/tsani/pushbullet-hs/releases/tag/v0.4.0.1
-  tag: v0.4.0.1
-
 library
   exposed-modules:
     Network.Pushbullet.Api,
