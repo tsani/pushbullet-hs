@@ -1,4 +1,17 @@
-module Network.Pushbullet.Types.Misc where
+module Network.Pushbullet.Types.Misc
+( EmailAddress(..),
+  ChannelTag(..),
+  ChannelId(..),
+  ClientId(..),
+  MimeType(..),
+  Url(..),
+  Guid(..),
+  PhoneNumber(..),
+  TrivialObject,
+  trivialObject,
+  Name(..)
+)
+where
 
 import Data.Aeson
 import qualified Data.HashMap.Lazy as H
@@ -29,7 +42,11 @@ newtype PhoneNumber = PhoneNumber Text
   deriving (Eq, FromJSON, Show, ToJSON)
 
 newtype TrivialObject = TrivialObject ()
-  deriving (Eq, Ord, Monoid, Show)
+  deriving (Eq, Ord, Show)
+
+-- | Constructs a trivial object, with no keys.
+trivialObject :: TrivialObject
+trivialObject = TrivialObject ()
 
 newtype Name = Name
   { unName :: Text
@@ -41,6 +58,6 @@ instance ToJSON TrivialObject where
 
 instance FromJSON TrivialObject where
   parseJSON (Object o)
-    | H.null o = pure mempty
-    | otherwise = fail "trivial object has no keys"
+    | H.null o = pure trivialObject
+    | otherwise = fail "cannot parse non-trivial object to trivial object"
   parseJSON _ = fail "cannot parse non-object to trivial object"
