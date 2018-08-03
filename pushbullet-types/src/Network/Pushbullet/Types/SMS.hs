@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -56,19 +58,31 @@ makeLenses ''SmsThreadRecipient
 newtype SmsThreadId = SmsThreadId Text
   deriving (Eq, FromJSON, Show, ToJSON)
 
-data SmsThread
+data SmsThread a
   = SmsThread
     { _threadId :: SmsThreadId
     , _threadRecipients :: NonEmpty SmsThreadRecipient
-    , _threadLatest :: SmsMessage
+    , _threadLatest :: a
     }
-  deriving (Eq, Show)
+  deriving (Eq, Foldable, Functor, Show, Traversable)
 
 makeLenses ''SmsThread
 
+-- | An SMS conversaion in which it is unknown whether there is a
+-- latest message.
+type SmsThread' = SmsThread (Maybe SmsMessage)
+
+-- | An SMS conversation in which it is certain that there is a latest
+-- message.
+type SmsThreadWithLatest = SmsThread SmsMessage
+
+-- | Decides whether the given 'SmsThread' has a latest message.
+checkLatestMessage :: SmsThread' -> Maybe SmsThreadWithLatest
+checkLatestMessage = sequenceA
+
 newtype SmsThreads
   = SmsThreads
-    { unSmsThreads :: [SmsThread]
+    { unSmsThreads :: [SmsThread']
     }
   deriving (Eq, Show)
 
@@ -111,9 +125,9 @@ instance FromJSON SmsThreadRecipient where
     <*> o .: "number"
   parseJSON _ = fail "cannot parse sms thread recipient from non-object"
 
-instance FromJSON SmsThread where
+instance FromJSON a => FromJSON (SmsThread (Maybe a)) where
   parseJSON (Object o) = pure SmsThread
     <*> o .: "id"
     <*> o .: "recipients"
-    <*> o .: "latest"
+    <*> o .:? "latest"
   parseJSON _ = fail "cannot parse sms thread from non-object"

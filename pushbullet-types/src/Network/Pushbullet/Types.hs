@@ -52,6 +52,8 @@ module Network.Pushbullet.Types
   -- ** SMS
 , SmsThreads(..)
 , SmsThread(..)
+, SmsThread'
+, SmsThreadWithLatest
 , SmsThreadId(..)
 , SmsThreadRecipient(..)
 , SmsMessages(..)
@@ -59,6 +61,7 @@ module Network.Pushbullet.Types
 , SmsId(..)
 , SmsDirection(..)
 , SmsMessageType(..)
+, checkLatestMessage
   -- * Misc
   --
   -- ** Data
