@@ -13,10 +13,11 @@ data Count
 
 -- | Retrieves paginated data as a list.
 --
--- Suppose 550 items from a resource with 1100 entries and Pushbullet emits
--- pages of 100 items each. This function takes care of repeatedly calling the
--- API and keeping track of the cursors emitted from subsequent calls until
--- those 550 items have been collected.
+-- Suppose we want to retrieve 550 items from a resource with 1100
+-- entries and Pushbullet emits pages of 100 items each. This function
+-- takes care of repeatedly calling the API and keeping track of the
+-- cursors emitted from subsequent calls until those 550 items have
+-- been collected.
 getPaginatedLimit
   :: Monad m
   => Count -- ^ The count of items you wish to retrieve from the API.
@@ -41,6 +42,9 @@ getPaginatedLimit (Limit n) (Page d (Just c)) next = do
   later <- getPaginatedLimit (Limit n') p next
   pure (d' ++ later)
 
+-- | A nicer interface to kick-start 'getPaginatedLimit', since many
+-- client functions in this library end with @Maybe Cursor -> m [A]@.
+-- (Actually, many tend to retrun @m A@ for some @A@ that wraps a list.)
 getPaginatedLimit'
   :: Monad m
   => Count

@@ -11,16 +11,19 @@ import Servant.Client
 import Servant.Common.Req ( addHeader )
 import Servant.API hiding ( addHeader )
 
+-- | Create a new push.
 createPush
   :: Auth
   -> Push 'New
   -> ClientM (Push 'Existing)
+-- | List existing pushes.
+-- This function should be used in conjunction with 'getPaginatedLimit'.
 getPushes
   :: Auth
-  -> Maybe PushbulletTime
-  -> Maybe Bool
-  -> Maybe Int
-  -> Maybe Cursor
+  -> Maybe PushbulletTime -- ^ Request pushes modified after this time.
+  -> Maybe Bool -- ^ Whether to list pushes that have not been deleted.
+  -> Maybe Int -- ^ Limit on the number of pushes to return.
+  -> Maybe Cursor -- ^ A cursor for use with pagination.
   -> ClientM (Paginated ExistingPushes)
 getPush
   :: Auth
