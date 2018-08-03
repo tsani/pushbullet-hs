@@ -1,5 +1,13 @@
 # Revision history for pushbullet-types
 
+## 0.5.0.0  -- 2018-08-03
+
+* Change the type of the `_threadLatest` field in `SmsThread`.
+  Now, `SmsThread` is a parameterized type, and the parameter is the type of the
+  latest message. This in turn makes `SmsThread` a trivial Functor, Foldable,
+  and Traversable. This lets us use `sequenceA` to check for the presence of a
+  latest message.
+
 ## 0.4.0.2  -- 2018-02-11
 
 * Derive `ToHttpApiData` for `PushId`.
