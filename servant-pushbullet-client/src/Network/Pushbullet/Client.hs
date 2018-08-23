@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Network.Pushbullet.Client where
 
@@ -8,7 +9,12 @@ import Network.Pushbullet.Api
 import Network.Pushbullet.Types
 
 import Servant.Client
-import Servant.Common.Req ( addHeader )
+import Servant.Client.Core
+  ( addHeader
+  , AuthClientData
+  , AuthenticatedRequest
+  , mkAuthenticatedRequest
+  )
 import Servant.API hiding ( addHeader )
 
 -- | Create a new push.
@@ -67,10 +73,10 @@ getSmsMessages
 --
 -- This authenticator adds the necessary @Access-Token@ header to the request.
 pushbulletAuth :: PushbulletKey -> Auth
-pushbulletAuth key = mkAuthenticateReq key f where
+pushbulletAuth key = mkAuthenticatedRequest key f where
   f = addHeader "Access-Token"
 
 -- | A shorter name of the auth type we use.
-type Auth = AuthenticateReq (AuthProtect PushbulletAuth)
+type Auth = AuthenticatedRequest (AuthProtect PushbulletAuth)
 
 type instance AuthClientData (AuthProtect PushbulletAuth) = PushbulletKey

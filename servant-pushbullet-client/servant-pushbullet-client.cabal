@@ -52,8 +52,9 @@ library
     microlens >=0.4,
     microlens-th >=0.4,
     scientific >=0.3,
-    servant >=0.9,
-    servant-client >=0.9,
+    servant >=0.13,
+    servant-client >=0.13,
+    servant-client-core >=0.13,
     time >=1.6,
     text >=1.2,
     unordered-containers >=0.2
